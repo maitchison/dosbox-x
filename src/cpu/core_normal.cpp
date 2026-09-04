@@ -157,6 +157,9 @@ static INLINE uint32_t Fetchd() {
 
 #define EALookupTable (core.ea_table)
 
+#ifdef FURY_JIT_SPIKE
+extern "C" void fury_jit_selftest();
+#endif
 #ifdef JSDOS_NO_RECURSION
 Bits CPU_Core_Normal_Run_Impl(void);
 Bits CPU_Core_Normal_Run(void) {
@@ -192,6 +195,37 @@ Bits CPU_Core_Normal_Run(void) {
 #endif
 		cycle_count++;
 restart_opcode:
+#ifdef FURY_JIT_SPIKE
+		{
+			/* fury: once, from inside the running emulator (cwd = the mounted root) */
+			static bool fury_jit_done = false;
+			if (!fury_jit_done) { fury_jit_done = true; fury_jit_selftest(); }
+		}
+#endif
+#ifdef FURY_OPHIST
+		/* fury: which guest opcodes the interpreter spends its time on.
+		   Index = table (none/0F/66/66 0F, 16- and 32-bit) + opcode byte; a
+		   prefix byte is counted in its own table and the real op again in
+		   the prefixed one. Dumped to stderr every 100M instructions. */
+		{
+			static uint32_t fury_ophist[1024];
+			static uint64_t fury_total;
+			fury_ophist[(core.opcode_index+LoadMb(core.cseip)) & 1023]++;
+			if ((++fury_total & ((1u<<27)-1)) == 0) {
+				/* a file in the mounted root, so the page can fsReadFile it;
+				   stderr from the worker reaches nobody */
+				FILE* f = fopen("ophist.txt", "w");
+				if (f) {
+					fprintf(f, "FURY_OPHIST total=%llu", (unsigned long long)fury_total);
+					for (unsigned i = 0; i < 1024; i++)
+						if (fury_ophist[i] > fury_total/2000)
+							fprintf(f, " %03x=%u", i, fury_ophist[i]);
+					fprintf(f, "\n");
+					fclose(f);
+				}
+			}
+		}
+#endif
 		switch (core.opcode_index+Fetchb()) {
 		#include "core_normal/prefix_none.h"
 		#include "core_normal/prefix_0f.h"
