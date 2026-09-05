@@ -322,6 +322,70 @@ static INLINE void gen_lea(HostReg dest_reg, Bitu scale, Bits imm) {
 
 #define WASM_RAW_CALL_SIZE 20
 
+// the checked memory helpers, so the generated code can do their TLB fast
+// path itself and only call on a miss
+bool DRC_CALL_CONV mem_readb_checked_drc(PhysPt address) DRC_FC;
+bool DRC_CALL_CONV mem_readw_checked_drc(PhysPt address) DRC_FC;
+bool DRC_CALL_CONV mem_readd_checked_drc(PhysPt address) DRC_FC;
+bool DRC_CALL_CONV mem_writeb_checked_drc(PhysPt address, uint8_t val) DRC_FC;
+bool DRC_CALL_CONV mem_writew_checked_drc(PhysPt address, uint16_t val) DRC_FC;
+bool DRC_CALL_CONV mem_writed_checked_drc(PhysPt address, uint32_t val) DRC_FC;
+
+static void wasm_emit_plain_call(uint32_t idx, uint8_t nparams, bool ret) {
+	for (Bitu i = 0; i < nparams; i++) wasm_get(wasm_param_local(i));
+	cache_addb(W_I32_CONST);
+	wasm_i32_const_fixed(idx, cache.pos);
+	cache.pos += 5;
+	cache_addb(W_CALL_INDIRECT);
+	wasm_uleb(wasm_sig_index(nparams, ret));
+	wasm_uleb(0);
+	if (ret) wasm_set(FC_RETOP);
+}
+
+// a checked memory access: inline the TLB hit (the helper's own fast path),
+// fall back to the call on a miss or a page-crossing access. Address in
+// FC_OP1, value for a write in FC_OP2, the read lands in core_dynrec.readdata
+// and FC_RETOP is 0 (no fault) exactly as after the helper.
+static bool wasm_emit_mem_fast(uintptr_t f, uint8_t nparams, bool ret) {
+	int size = 0; bool write = false;
+	if (f == (uintptr_t)&mem_readb_checked_drc) size = 1;
+	else if (f == (uintptr_t)&mem_readw_checked_drc) size = 2;
+	else if (f == (uintptr_t)&mem_readd_checked_drc) size = 4;
+	else if (f == (uintptr_t)&mem_writeb_checked_drc) { size = 1; write = true; }
+	else if (f == (uintptr_t)&mem_writew_checked_drc) { size = 2; write = true; }
+	else if (f == (uintptr_t)&mem_writed_checked_drc) { size = 4; write = true; }
+	else return false;
+	cache_addb(W_BLOCK); cache_addb(W_BLOCKTYPE_VOID);          // $done
+	cache_addb(W_BLOCK); cache_addb(W_BLOCKTYPE_VOID);          // $slow
+	if (size > 1) {
+		wasm_get(FC_OP1); wasm_i32_const(0xfff); cache_addb(W_I32_AND);
+		wasm_i32_const((uint32_t)(0x1000 - size + 1)); cache_addb(0x4f);   // i32.ge_u
+		cache_addb(W_BR_IF); wasm_uleb(0);
+	}
+	wasm_addr(write ? (const void*)paging.tlb.write : (const void*)paging.tlb.read);
+	wasm_get(FC_OP1); wasm_i32_const(12); cache_addb(W_I32_SHR_U);
+	wasm_i32_const(2); cache_addb(W_I32_SHL); cache_addb(W_I32_ADD);
+	wasm_load32();
+	wasm_tee(WL_TMP); cache_addb(W_I32_EQZ);
+	cache_addb(W_BR_IF); wasm_uleb(0);
+	if (!write) {
+		wasm_addr(&core_dynrec.readdata);
+		wasm_get(WL_TMP); wasm_get(FC_OP1); cache_addb(W_I32_ADD);
+		if (size == 4) wasm_load32(); else if (size == 2) wasm_load16u(); else wasm_load8u();
+		wasm_store32();
+	} else {
+		wasm_get(WL_TMP); wasm_get(FC_OP1); cache_addb(W_I32_ADD);
+		wasm_get(FC_OP2);
+		if (size == 4) wasm_store32(); else if (size == 2) wasm_store16(); else wasm_store8();
+	}
+	wasm_i32_const(0); wasm_set(FC_RETOP);
+	cache_addb(W_BR); wasm_uleb(1);
+	cache_addb(W_END);                                           // $slow: the helper
+	wasm_emit_plain_call((uint32_t)f, nparams, ret);
+	cache_addb(W_END);                                           // $done
+	return true;
+}
+
 // every helper call is the same fixed-size site -- parameter loads from
 // FC_OP1/FC_OP2/WL_P2/WL_P3, the function index as a 5-byte immediate, the
 // typed call_indirect, the result into FC_RETOP, nop padding -- so that
@@ -334,14 +398,8 @@ template <typename T> static DRC_PTR_SIZE_IM wasm_emit_call(const T func, Bitu p
 	if (paramcount > S::nparams) E_Exit("wasm dynrec: %u params loaded for a %u-param helper",
 		(unsigned)paramcount, (unsigned)S::nparams);
 	uint8_t* start = cache.pos;
-	for (Bitu i = 0; i < S::nparams; i++) wasm_get(wasm_param_local(i));
-	cache_addb(W_I32_CONST);
-	wasm_i32_const_fixed((uint32_t)(uintptr_t)func, cache.pos);
-	cache.pos += 5;
-	cache_addb(W_CALL_INDIRECT);
-	wasm_uleb(wasm_sig_index(S::nparams, S::ret));
-	wasm_uleb(0);   // table 0
-	if (S::ret) wasm_set(FC_RETOP);
+	if (wasm_emit_mem_fast((uintptr_t)func, S::nparams, S::ret)) return (DRC_PTR_SIZE_IM)(uintptr_t)start;
+	wasm_emit_plain_call((uint32_t)(uintptr_t)func, S::nparams, S::ret);
 	if (cache.pos - start > WASM_RAW_CALL_SIZE) E_Exit("wasm dynrec: call site too long");
 	while (cache.pos - start < WASM_RAW_CALL_SIZE) cache_addb(W_NOP);
 	return (DRC_PTR_SIZE_IM)(uintptr_t)start;
