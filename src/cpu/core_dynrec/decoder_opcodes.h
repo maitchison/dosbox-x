@@ -1123,7 +1123,8 @@ static void dyn_branched_exit(BranchTypes btype,int32_t eip_add) {
  	dyn_closeblock();
 }
 
-/*
+#if defined(FURY_WASMJIT)
+
 static void dyn_set_byte_on_condition(BranchTypes btype) {
 	dyn_get_modrm();
 	dyn_branchflag_to_reg(btype);
@@ -1135,7 +1136,9 @@ static void dyn_set_byte_on_condition(BranchTypes btype) {
 		MOV_REG_BYTE_FROM_HOST_REG_LOW(FC_RETOP,decode.modrm.rm&3,(decode.modrm.rm>>2)&1);
 	}
 }
-*/
+
+#endif
+
 
 static void dyn_loop(LoopTypes type) {
 	dyn_reduce_cycles();

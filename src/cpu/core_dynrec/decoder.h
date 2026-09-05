@@ -25,6 +25,7 @@
 #include "dyn_fpu.h"
 #if defined(FURY_WASMJIT)
 #include "dyn_mmx.h"
+#include "dyn_fury.h"
 #endif
 #include <stddef.h>
 
@@ -209,11 +210,26 @@ restart_prefix:
 					goto finish_block;
 
 				// conditional byte set instructions
-/*				case 0x90:case 0x91:case 0x92:case 0x93:case 0x94:case 0x95:case 0x96:case 0x97:	
-				case 0x98:case 0x99:case 0x9a:case 0x9b:case 0x9c:case 0x9d:case 0x9e:case 0x9f:	
+#if defined(FURY_WASMJIT)
+				// fury: setcc stays in the block (the routine was left commented out upstream)
+				case 0x90:case 0x91:case 0x92:case 0x93:case 0x94:case 0x95:case 0x96:case 0x97:
+				case 0x98:case 0x99:case 0x9a:case 0x9b:case 0x9c:case 0x9d:case 0x9e:case 0x9f:
 					dyn_set_byte_on_condition((BranchTypes)(dual_code&0xf));
 					AcquireFlags(FMASK_TEST);
-					break; */
+					break;
+				case 0x21:
+					if (CPU_ArchitectureType<CPU_ARCHTYPE_386) goto illegalopcode;
+					dyn_fury_mov_drx(false);
+					break;
+				case 0x23:
+					if (CPU_ArchitectureType<CPU_ARCHTYPE_386) goto illegalopcode;
+					dyn_fury_mov_drx(true);
+					break;
+				case 0x31:
+					if (CPU_ArchitectureType<CPU_ARCHTYPE_PENTIUM) goto illegalopcode;
+					gen_call_function_raw(fury_rdtsc);
+					break;
+#endif
 
 				// push/pop segment registers
 				case 0xa0:dyn_push_seg(DRC_SEG_FS);break;
