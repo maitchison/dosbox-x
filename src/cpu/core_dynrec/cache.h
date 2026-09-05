@@ -491,6 +491,10 @@ void CacheBlockDynRec::Clear(void) {
 }
 
 static INLINE void *cache_rwtox(void *x);
+#if defined(FURY_WASMJIT)
+static uint32_t wasm_finalize_raw(uint8_t* start, uint8_t* end);
+static BlockReturnDynRec fury_wasm_runcode(uint8_t* xstart);
+#endif
 
 static CacheBlockDynRec * cache_openblock(void) {
 	CacheBlockDynRec * block=cache.block.active;
@@ -658,10 +662,16 @@ static void cache_reset(void) {
 		link_blocks[0].cache.start=cache.pos;
 		link_blocks[0].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[0].cache.start);
 		dyn_return(BR_Link1,false);
+#if defined(FURY_WASMJIT)
+		link_blocks[0].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[0].cache.start,cache.pos);
+#endif
 		cache.pos=&cache_code_link_blocks[32];
 		link_blocks[1].cache.start=cache.pos;
 		link_blocks[1].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[1].cache.start);
 		dyn_return(BR_Link2,false);
+#if defined(FURY_WASMJIT)
+		link_blocks[1].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[1].cache.start,cache.pos);
+#endif
 		cache.free_pages=nullptr;
 		cache.last_page=nullptr;
 		cache.used_pages=nullptr;
@@ -718,16 +728,26 @@ static void cache_init(bool enable) {
 		link_blocks[0].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[0].cache.start);
 		// link code that returns with a special return code
 		dyn_return(BR_Link1,false);
+#if defined(FURY_WASMJIT)
+		link_blocks[0].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[0].cache.start,cache.pos);
+#endif
 		cache.pos=&cache_code_link_blocks[32];
 		link_blocks[1].cache.start=cache.pos;
 		link_blocks[1].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[1].cache.start);
 		// link code that returns with a special return code
 		dyn_return(BR_Link2,false);
+#if defined(FURY_WASMJIT)
+		link_blocks[1].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[1].cache.start,cache.pos);
+#endif
 
 		cache.pos=&cache_code_link_blocks[64];
+#if defined(FURY_WASMJIT)
+		*(void**)(&core_dynrec.runcode) = (void*)&fury_wasm_runcode;
+#else
 		*(void**)(&core_dynrec.runcode) = (void*)cache_rwtox(cache.pos);
 //		link_blocks[1].cache.start=cache.pos;
 		dyn_run_code();
+#endif
 
 		cache.free_pages=nullptr;
 		cache.last_page=nullptr;

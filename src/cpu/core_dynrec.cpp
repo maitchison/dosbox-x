@@ -136,6 +136,10 @@ static struct {
 #define ARMV7LE		0x05
 #define ARMV8LE		0x07
 
+#if defined(FURY_WASMJIT)
+#define WASM32 77
+#define C_TARGETCPU WASM32
+#endif
 #if !defined(C_TARGETCPU)
 # if defined(_MSC_VER) && defined(_M_AMD64)
 #  define C_TARGETCPU X86_64
@@ -146,7 +150,9 @@ static struct {
 # endif
 #endif
 
-#if C_TARGETCPU == X86_64
+#if defined(FURY_WASMJIT)
+#include "core_dynrec/risc_wasm.h"
+#elif C_TARGETCPU == X86_64
 #include "core_dynrec/risc_x64.h"
 #elif C_TARGETCPU == X86
 #include "core_dynrec/risc_x86.h"

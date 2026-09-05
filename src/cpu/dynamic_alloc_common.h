@@ -216,7 +216,9 @@ static void cache_dynamic_common_alloc(Bitu allocsz) {
     /* make sure dual mapping works */
     if (cache_exec_ptr != cache_code) {
         *cache_code = 0xAA;
+#if !defined(__EMSCRIPTEN__)
         __builtin___clear_cache((char*)cache_code,(char*)(cache_code+128));
+#endif
         if (*cache_exec_ptr == 0xAA) {
             LOG(LOG_MISC,LOG_DEBUG)("dyncore: dual map test passed. adj=0x%lx",(unsigned long)((uintptr_t)((char*)cache_exec_ptr) - (uintptr_t)((char*)cache_code)));
         }
