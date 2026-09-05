@@ -566,6 +566,9 @@ static Bitu Normal_Loop(void) {
 extern std::string cpuMetrics;
 #endif
 
+#if defined(FURY_WASMJIT) && !defined(FURY_USAGE_TARGET)
+#define FURY_USAGE_TARGET 99
+#endif
 void increaseticks() { //Make it return ticksRemain and set it in the function above to remove the global variable.
 #ifdef JSDOS_X
     jsdos::increaseticks();
@@ -651,7 +654,14 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
     if (ticksScheduled >= 250 || ticksDone >= 250 || (ticksAdded > 15 && ticksScheduled >= 5)) {
         if (ticksDone < 1) ticksDone = 1; // Protect against div by zero
         /* ratio we are aiming for is around 90% usage*/
+#if defined(FURY_WASMJIT)
+        /* fury: the stock 90% usage target leaves the worker idle a seventh
+           of the time (profile 2026-09-05); a game tab has nothing better to
+           do with that core */
+        int32_t ratio = (int32_t)((ticksScheduled * (CPU_CyclePercUsed * FURY_USAGE_TARGET * 1024 / 100 / 100)) / ticksDone);
+#else
         int32_t ratio = (int32_t)((ticksScheduled * (CPU_CyclePercUsed * 90 * 1024 / 100 / 100)) / ticksDone);
+#endif
         int32_t new_cmax = (int32_t)CPU_CycleMax;
         int64_t cproc = (int64_t)CPU_CycleMax * (int64_t)ticksScheduled;
         if (cproc > 0) {
