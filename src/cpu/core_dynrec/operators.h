@@ -1756,6 +1756,30 @@ static uint32_t DRC_CALL_CONV dynrec_movsd_dword(uint32_t count,int32_t add_inde
 		CPU_Cycles=0;
 	}
 	add_index<<=2;
+#if defined(FURY_WASMJIT)
+	/* fury: a forward move between pages the TLB maps directly is a host
+	   memmove per page-bounded run. Not when the destination starts inside
+	   the source run: x86 copies element by element, which makes that a
+	   pattern fill, and memmove would not (it hung the BIOS boot). Anything
+	   else -- handlers, backward, page-crossing dwords -- takes the loop. */
+	if (add_index==4) {
+		while (count>0) {
+			PhysPt s=si_base+reg_esi, d=di_base+reg_edi;
+			HostPt ts=get_tlb_read(s), td=get_tlb_write(d);
+			if (!ts || !td) break;
+			uint32_t n=count;
+			uint32_t sroom=(0x1000u-(s&0xfffu))>>2, droom=(0x1000u-(d&0xfffu))>>2;
+			if (n>sroom) n=sroom;
+			if (n>droom) n=droom;
+			if (n==0) break;
+			if (d>s && d<s+n*4) break;
+			memmove(td+d, ts+s, n*4);
+			reg_esi+=n*4;
+			reg_edi+=n*4;
+			count-=n;
+		}
+	}
+#endif
 	for (;count>0;count--) {
 		mem_writed(di_base+reg_edi,mem_readd(si_base+reg_esi));
 		reg_esi+=add_index;
