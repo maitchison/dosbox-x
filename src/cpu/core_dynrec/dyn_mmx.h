@@ -9,7 +9,7 @@ static INLINE void fury_writeq(PhysPt a, uint64_t v) { if (mem_writed_checked(a,
 static INLINE uint32_t fury_readd(PhysPt a) { uint32_t v = 0; if (mem_readd_checked(a, &v)) fury_mmx_fault = 1; return v; }
 static INLINE void fury_writed(PhysPt a, uint32_t v) { if (mem_writed_checked(a, v)) fury_mmx_fault = 1; }
 
-static bool fury_mmx_60(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_60(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg *dest = lookupRMregMM[rm];
 		MMX_reg src;
@@ -27,10 +27,10 @@ static bool fury_mmx_60(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b2 = dest->ub.b1;
 		dest->ub.b1 = src.ub.b0;
 		dest->ub.b0 = dest->ub.b0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_61(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_61(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg *dest = lookupRMregMM[rm];
 		MMX_reg src;
@@ -44,10 +44,10 @@ static bool fury_mmx_61(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w2 = dest->uw.w1;
 		dest->uw.w1 = src.uw.w0;
 		dest->uw.w0 = dest->uw.w0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_62(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_62(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -58,10 +58,10 @@ static bool fury_mmx_62(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			src.q = fury_readq(eaa);
 		}
 		dest->ud.d1 = src.ud.d0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_63(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_63(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -79,10 +79,10 @@ static bool fury_mmx_63(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sb.b5 = SaturateWordSToByteS(src.sw.w1);
 		dest->sb.b6 = SaturateWordSToByteS(src.sw.w2);
 		dest->sb.b7 = SaturateWordSToByteS(src.sw.w3);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_64(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_64(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -100,10 +100,10 @@ static bool fury_mmx_64(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 = dest->sb.b5>src.sb.b5?0xff:0;
 		dest->ub.b6 = dest->sb.b6>src.sb.b6?0xff:0;
 		dest->ub.b7 = dest->sb.b7>src.sb.b7?0xff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_65(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_65(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -117,10 +117,10 @@ static bool fury_mmx_65(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 = dest->sw.w1>src.sw.w1?0xffff:0;
 		dest->uw.w2 = dest->sw.w2>src.sw.w2?0xffff:0;
 		dest->uw.w3 = dest->sw.w3>src.sw.w3?0xffff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_66(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_66(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -132,10 +132,10 @@ static bool fury_mmx_66(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		dest->ud.d0 = dest->sd.d0>src.sd.d0?0xffffffff:0;
 		dest->ud.d1 = dest->sd.d1>src.sd.d1?0xffffffff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_67(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_67(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -153,10 +153,10 @@ static bool fury_mmx_67(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 = SaturateWordSToByteU(src.sw.w1);
 		dest->ub.b6 = SaturateWordSToByteU(src.sw.w2);
 		dest->ub.b7 = SaturateWordSToByteU(src.sw.w3);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_68(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_68(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -174,10 +174,10 @@ static bool fury_mmx_68(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 = src.ub.b6;
 		dest->ub.b6 = dest->ub.b7;
 		dest->ub.b7 = src.ub.b7;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_69(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_69(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -191,10 +191,10 @@ static bool fury_mmx_69(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 = src.uw.w2;
 		dest->uw.w2 = dest->uw.w3;
 		dest->uw.w3 = src.uw.w3;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_6a(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_6a(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -206,10 +206,10 @@ static bool fury_mmx_6a(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		dest->ud.d0 = dest->ud.d1;
 		dest->ud.d1 = src.ud.d1;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_6b(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_6b(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -223,10 +223,10 @@ static bool fury_mmx_6b(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sw.w1 = SaturateDwordSToWordS(dest->sd.d1);
 		dest->sw.w2 = SaturateDwordSToWordS(src.sd.d0);
 		dest->sw.w3 = SaturateDwordSToWordS(src.sd.d1);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_6e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_6e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* rmrq=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -238,10 +238,10 @@ static bool fury_mmx_6e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			rmrq->ud.d0=fury_readd(eaa);
 			rmrq->ud.d1=0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_6f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_6f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -251,10 +251,10 @@ static bool fury_mmx_6f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			dest->q=fury_readq(eaa);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_71(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_71(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		uint8_t op=(rm>>3)&7;
 		uint8_t shift=(uint8_t)imm;
@@ -292,12 +292,12 @@ static bool fury_mmx_71(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 				}
 				break;
 			default:
-				return false;
+				return 0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_72(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_72(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		uint8_t op=(rm>>3)&7;
 		uint8_t shift=(uint8_t)imm;
@@ -327,12 +327,12 @@ static bool fury_mmx_72(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 				}
 				break;
 			default:
-				return false;
+				return 0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_73(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_73(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		uint8_t op=(rm>>3)&7;
 		uint8_t shift=(uint8_t)imm;
@@ -347,12 +347,12 @@ static bool fury_mmx_73(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 				else dest->q >>= (uint64_t)shift;
 				break;
 			default:
-				return false;
+				return 0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_74(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_74(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -370,10 +370,10 @@ static bool fury_mmx_74(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 = dest->ub.b5==src.ub.b5?0xff:0;
 		dest->ub.b6 = dest->ub.b6==src.ub.b6?0xff:0;
 		dest->ub.b7 = dest->ub.b7==src.ub.b7?0xff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_75(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_75(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -387,10 +387,10 @@ static bool fury_mmx_75(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 = dest->uw.w1==src.uw.w1?0xffff:0;
 		dest->uw.w2 = dest->uw.w2==src.uw.w2?0xffff:0;
 		dest->uw.w3 = dest->uw.w3==src.uw.w3?0xffff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_76(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_76(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -402,16 +402,16 @@ static bool fury_mmx_76(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		dest->ud.d0 = dest->ud.d0==src.ud.d0?0xffffffff:0;
 		dest->ud.d1 = dest->ud.d1==src.ud.d1?0xffffffff:0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_77(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_77(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		setFPUTagEmpty();
 		fpu.sw.top = 0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_7e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_7e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* rmrq=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -421,10 +421,10 @@ static bool fury_mmx_7e(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			fury_writed(eaa,rmrq->ud.d0);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_7f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_7f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -434,10 +434,10 @@ static bool fury_mmx_7f(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			fury_writeq(eaa,dest->q);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -454,10 +454,10 @@ static bool fury_mmx_d1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->uw.w2 >>= src.ub.b0;
 			dest->uw.w3 >>= src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -472,10 +472,10 @@ static bool fury_mmx_d2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->ud.d0 >>= src.ub.b0;
 			dest->ud.d1 >>= src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -487,10 +487,10 @@ static bool fury_mmx_d3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		if (src.q > 63) dest->q = 0;
 		else dest->q >>= (uint64_t)src.ub.b0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -508,10 +508,10 @@ static bool fury_mmx_d5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sw.w1 = product1;
 		dest->sw.w2 = product2;
 		dest->sw.w3 = product3;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -532,10 +532,10 @@ static bool fury_mmx_d8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		result.ub.b6 = SaturateWordSToByteU((int16_t)dest->ub.b6 - (int16_t)src.ub.b6);
 		result.ub.b7 = SaturateWordSToByteU((int16_t)dest->ub.b7 - (int16_t)src.ub.b7);
 		dest->q = result.q;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_d9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_d9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -552,10 +552,10 @@ static bool fury_mmx_d9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		result.uw.w2 = SaturateDwordSToWordU((int32_t)dest->uw.w2 - (int32_t)src.uw.w2);
 		result.uw.w3 = SaturateDwordSToWordU((int32_t)dest->uw.w3 - (int32_t)src.uw.w3);
 		dest->q = result.q;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_db(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_db(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -565,10 +565,10 @@ static bool fury_mmx_db(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			dest->q &= fury_readq(eaa);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_dc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_dc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -586,10 +586,10 @@ static bool fury_mmx_dc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 = SaturateWordSToByteU((int16_t)dest->ub.b5+(int16_t)src.ub.b5);
 		dest->ub.b6 = SaturateWordSToByteU((int16_t)dest->ub.b6+(int16_t)src.ub.b6);
 		dest->ub.b7 = SaturateWordSToByteU((int16_t)dest->ub.b7+(int16_t)src.ub.b7);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_dd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_dd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -603,10 +603,10 @@ static bool fury_mmx_dd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 = SaturateDwordSToWordU((int32_t)dest->uw.w1+(int32_t)src.uw.w1);
 		dest->uw.w2 = SaturateDwordSToWordU((int32_t)dest->uw.w2+(int32_t)src.uw.w2);
 		dest->uw.w3 = SaturateDwordSToWordU((int32_t)dest->uw.w3+(int32_t)src.uw.w3);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_df(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_df(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -616,10 +616,10 @@ static bool fury_mmx_df(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			dest->q = ~dest->q & fury_readq(eaa);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_e1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_e1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -640,10 +640,10 @@ static bool fury_mmx_e1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->sw.w2 >>= (int16_t)src.ub.b0;
 			dest->sw.w3 >>= (int16_t)src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_e2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_e2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -660,10 +660,10 @@ static bool fury_mmx_e2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->ud.d0 >>= (int32_t)src.ub.b0;
 			dest->ud.d1 >>= (int32_t)src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_e5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_e5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -681,10 +681,10 @@ static bool fury_mmx_e5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 = (uint16_t)(product1 >> 16);
 		dest->uw.w2 = (uint16_t)(product2 >> 16);
 		dest->uw.w3 = (uint16_t)(product3 >> 16);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_e8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_e8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -702,10 +702,10 @@ static bool fury_mmx_e8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sb.b5 = SaturateWordSToByteS((int16_t)dest->sb.b5-(int16_t)src.sb.b5);
 		dest->sb.b6 = SaturateWordSToByteS((int16_t)dest->sb.b6-(int16_t)src.sb.b6);
 		dest->sb.b7 = SaturateWordSToByteS((int16_t)dest->sb.b7-(int16_t)src.sb.b7);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_e9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_e9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -719,10 +719,10 @@ static bool fury_mmx_e9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sw.w1 = SaturateDwordSToWordS((int32_t)dest->sw.w1-(int32_t)src.sw.w1);
 		dest->sw.w2 = SaturateDwordSToWordS((int32_t)dest->sw.w2-(int32_t)src.sw.w2);
 		dest->sw.w3 = SaturateDwordSToWordS((int32_t)dest->sw.w3-(int32_t)src.sw.w3);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_eb(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_eb(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -732,10 +732,10 @@ static bool fury_mmx_eb(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			dest->q |= fury_readq(eaa);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_ec(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_ec(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -753,10 +753,10 @@ static bool fury_mmx_ec(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sb.b5 = SaturateWordSToByteS((int16_t)dest->sb.b5+(int16_t)src.sb.b5);
 		dest->sb.b6 = SaturateWordSToByteS((int16_t)dest->sb.b6+(int16_t)src.sb.b6);
 		dest->sb.b7 = SaturateWordSToByteS((int16_t)dest->sb.b7+(int16_t)src.sb.b7);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_ed(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_ed(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -770,10 +770,10 @@ static bool fury_mmx_ed(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->sw.w1 = SaturateDwordSToWordS((int32_t)dest->sw.w1+(int32_t)src.sw.w1);
 		dest->sw.w2 = SaturateDwordSToWordS((int32_t)dest->sw.w2+(int32_t)src.sw.w2);
 		dest->sw.w3 = SaturateDwordSToWordS((int32_t)dest->sw.w3+(int32_t)src.sw.w3);
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_ef(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_ef(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		if (rm>=0xc0) {
@@ -783,10 +783,10 @@ static bool fury_mmx_ef(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			
 			dest->q ^= fury_readq(eaa);
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -803,10 +803,10 @@ static bool fury_mmx_f1(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->uw.w2 <<= src.ub.b0;
 			dest->uw.w3 <<= src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -821,10 +821,10 @@ static bool fury_mmx_f2(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			dest->ud.d0 <<= src.ub.b0;
 			dest->ud.d1 <<= src.ub.b0;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -836,10 +836,10 @@ static bool fury_mmx_f3(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		if (src.q > 63) dest->q = 0;
 		else dest->q <<= (uint64_t)src.ub.b0;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -863,10 +863,10 @@ static bool fury_mmx_f5(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 			int32_t product3 = (int32_t)dest->sw.w3 * (int32_t)src.sw.w3;
 			dest->sd.d1 = product2 + product3;
 		}
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -884,10 +884,10 @@ static bool fury_mmx_f8(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 -= src.ub.b5;
 		dest->ub.b6 -= src.ub.b6;
 		dest->ub.b7 -= src.ub.b7;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_f9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_f9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -901,10 +901,10 @@ static bool fury_mmx_f9(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 -= src.uw.w1;
 		dest->uw.w2 -= src.uw.w2;
 		dest->uw.w3 -= src.uw.w3;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_fa(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_fa(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -916,10 +916,10 @@ static bool fury_mmx_fa(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		dest->ud.d0 -= src.ud.d0;
 		dest->ud.d1 -= src.ud.d1;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_fc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_fc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -937,10 +937,10 @@ static bool fury_mmx_fc(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->ub.b5 += src.ub.b5;
 		dest->ub.b6 += src.ub.b6;
 		dest->ub.b7 += src.ub.b7;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_fd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_fd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -954,10 +954,10 @@ static bool fury_mmx_fd(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		dest->uw.w1 += src.uw.w1;
 		dest->uw.w2 += src.uw.w2;
 		dest->uw.w3 += src.uw.w3;
-		return true;
+		return fury_mmx_fault;
 	}
 
-static bool fury_mmx_fe(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm;
+static Bitu fury_mmx_fe(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (void)imm; fury_mmx_fault = 0;
 		
 		MMX_reg* dest=lookupRMregMM[rm];
 		MMX_reg src;
@@ -969,89 +969,84 @@ static bool fury_mmx_fe(Bitu rm, PhysPt eaa, Bitu imm) { (void)rm; (void)eaa; (v
 		}
 		dest->ud.d0 += src.ud.d0;
 		dest->ud.d1 += src.ud.d1;
-		return true;
+		return fury_mmx_fault;
 	}
 
-// returns nonzero when a memory access faulted (the instruction must restart)
-static Bitu fury_mmx_exec(Bitu op, Bitu rm, PhysPt eaa, Bitu imm) {
-	fury_mmx_fault = 0;
-	switch (op) {
-		case 0x60: fury_mmx_60(rm, eaa, imm); break;
-		case 0x61: fury_mmx_61(rm, eaa, imm); break;
-		case 0x62: fury_mmx_62(rm, eaa, imm); break;
-		case 0x63: fury_mmx_63(rm, eaa, imm); break;
-		case 0x64: fury_mmx_64(rm, eaa, imm); break;
-		case 0x65: fury_mmx_65(rm, eaa, imm); break;
-		case 0x66: fury_mmx_66(rm, eaa, imm); break;
-		case 0x67: fury_mmx_67(rm, eaa, imm); break;
-		case 0x68: fury_mmx_68(rm, eaa, imm); break;
-		case 0x69: fury_mmx_69(rm, eaa, imm); break;
-		case 0x6a: fury_mmx_6a(rm, eaa, imm); break;
-		case 0x6b: fury_mmx_6b(rm, eaa, imm); break;
-		case 0x6e: fury_mmx_6e(rm, eaa, imm); break;
-		case 0x6f: fury_mmx_6f(rm, eaa, imm); break;
-		case 0x71: fury_mmx_71(rm, eaa, imm); break;
-		case 0x72: fury_mmx_72(rm, eaa, imm); break;
-		case 0x73: fury_mmx_73(rm, eaa, imm); break;
-		case 0x74: fury_mmx_74(rm, eaa, imm); break;
-		case 0x75: fury_mmx_75(rm, eaa, imm); break;
-		case 0x76: fury_mmx_76(rm, eaa, imm); break;
-		case 0x77: fury_mmx_77(rm, eaa, imm); break;
-		case 0x7e: fury_mmx_7e(rm, eaa, imm); break;
-		case 0x7f: fury_mmx_7f(rm, eaa, imm); break;
-		case 0xd1: fury_mmx_d1(rm, eaa, imm); break;
-		case 0xd2: fury_mmx_d2(rm, eaa, imm); break;
-		case 0xd3: fury_mmx_d3(rm, eaa, imm); break;
-		case 0xd5: fury_mmx_d5(rm, eaa, imm); break;
-		case 0xd8: fury_mmx_d8(rm, eaa, imm); break;
-		case 0xd9: fury_mmx_d9(rm, eaa, imm); break;
-		case 0xdb: fury_mmx_db(rm, eaa, imm); break;
-		case 0xdc: fury_mmx_dc(rm, eaa, imm); break;
-		case 0xdd: fury_mmx_dd(rm, eaa, imm); break;
-		case 0xdf: fury_mmx_df(rm, eaa, imm); break;
-		case 0xe1: fury_mmx_e1(rm, eaa, imm); break;
-		case 0xe2: fury_mmx_e2(rm, eaa, imm); break;
-		case 0xe5: fury_mmx_e5(rm, eaa, imm); break;
-		case 0xe8: fury_mmx_e8(rm, eaa, imm); break;
-		case 0xe9: fury_mmx_e9(rm, eaa, imm); break;
-		case 0xeb: fury_mmx_eb(rm, eaa, imm); break;
-		case 0xec: fury_mmx_ec(rm, eaa, imm); break;
-		case 0xed: fury_mmx_ed(rm, eaa, imm); break;
-		case 0xef: fury_mmx_ef(rm, eaa, imm); break;
-		case 0xf1: fury_mmx_f1(rm, eaa, imm); break;
-		case 0xf2: fury_mmx_f2(rm, eaa, imm); break;
-		case 0xf3: fury_mmx_f3(rm, eaa, imm); break;
-		case 0xf5: fury_mmx_f5(rm, eaa, imm); break;
-		case 0xf8: fury_mmx_f8(rm, eaa, imm); break;
-		case 0xf9: fury_mmx_f9(rm, eaa, imm); break;
-		case 0xfa: fury_mmx_fa(rm, eaa, imm); break;
-		case 0xfc: fury_mmx_fc(rm, eaa, imm); break;
-		case 0xfd: fury_mmx_fd(rm, eaa, imm); break;
-		case 0xfe: fury_mmx_fe(rm, eaa, imm); break;
-		default: break;
-	}
-	return fury_mmx_fault;
-}
-
-// the decoder side: register form as a 3-parameter call, memory form with the EA
+// the decoder side: the opcode is known at translate time, so call its helper
+// directly (rm, eaa, imm); the memory form checks the fault flag after
 static void dyn_mmx(Bitu op) {
+	Bitu (*fn)(Bitu, PhysPt, Bitu) = nullptr;
+	switch (op) {
+		case 0x60: fn = fury_mmx_60; break;
+		case 0x61: fn = fury_mmx_61; break;
+		case 0x62: fn = fury_mmx_62; break;
+		case 0x63: fn = fury_mmx_63; break;
+		case 0x64: fn = fury_mmx_64; break;
+		case 0x65: fn = fury_mmx_65; break;
+		case 0x66: fn = fury_mmx_66; break;
+		case 0x67: fn = fury_mmx_67; break;
+		case 0x68: fn = fury_mmx_68; break;
+		case 0x69: fn = fury_mmx_69; break;
+		case 0x6a: fn = fury_mmx_6a; break;
+		case 0x6b: fn = fury_mmx_6b; break;
+		case 0x6e: fn = fury_mmx_6e; break;
+		case 0x6f: fn = fury_mmx_6f; break;
+		case 0x71: fn = fury_mmx_71; break;
+		case 0x72: fn = fury_mmx_72; break;
+		case 0x73: fn = fury_mmx_73; break;
+		case 0x74: fn = fury_mmx_74; break;
+		case 0x75: fn = fury_mmx_75; break;
+		case 0x76: fn = fury_mmx_76; break;
+		case 0x77: fn = fury_mmx_77; break;
+		case 0x7e: fn = fury_mmx_7e; break;
+		case 0x7f: fn = fury_mmx_7f; break;
+		case 0xd1: fn = fury_mmx_d1; break;
+		case 0xd2: fn = fury_mmx_d2; break;
+		case 0xd3: fn = fury_mmx_d3; break;
+		case 0xd5: fn = fury_mmx_d5; break;
+		case 0xd8: fn = fury_mmx_d8; break;
+		case 0xd9: fn = fury_mmx_d9; break;
+		case 0xdb: fn = fury_mmx_db; break;
+		case 0xdc: fn = fury_mmx_dc; break;
+		case 0xdd: fn = fury_mmx_dd; break;
+		case 0xdf: fn = fury_mmx_df; break;
+		case 0xe1: fn = fury_mmx_e1; break;
+		case 0xe2: fn = fury_mmx_e2; break;
+		case 0xe5: fn = fury_mmx_e5; break;
+		case 0xe8: fn = fury_mmx_e8; break;
+		case 0xe9: fn = fury_mmx_e9; break;
+		case 0xeb: fn = fury_mmx_eb; break;
+		case 0xec: fn = fury_mmx_ec; break;
+		case 0xed: fn = fury_mmx_ed; break;
+		case 0xef: fn = fury_mmx_ef; break;
+		case 0xf1: fn = fury_mmx_f1; break;
+		case 0xf2: fn = fury_mmx_f2; break;
+		case 0xf3: fn = fury_mmx_f3; break;
+		case 0xf5: fn = fury_mmx_f5; break;
+		case 0xf8: fn = fury_mmx_f8; break;
+		case 0xf9: fn = fury_mmx_f9; break;
+		case 0xfa: fn = fury_mmx_fa; break;
+		case 0xfc: fn = fury_mmx_fc; break;
+		case 0xfd: fn = fury_mmx_fd; break;
+		case 0xfe: fn = fury_mmx_fe; break;
+		default: return;
+	}
 	if (op == 0x77) {
-		gen_load_param_imm(0x77, 0); gen_load_param_imm(0, 1); gen_load_param_imm(0, 2); gen_load_param_imm(0, 3);
-		gen_call_function_setup(fury_mmx_exec, 4);
+		gen_load_param_imm(0, 0); gen_load_param_imm(0, 1); gen_load_param_imm(0, 2);
+		gen_call_function_setup(fn, 3);
 		return;
 	}
 	dyn_get_modrm();
+	Bitu modrm = (decode.modrm.mod<<6)|(decode.modrm.reg<<3)|decode.modrm.rm;
 	if (decode.modrm.mod == 3) {
 		Bitu imm = (op >= 0x71 && op <= 0x73) ? decode_fetchb() : 0;
-		gen_load_param_imm(op, 0); gen_load_param_imm(((decode.modrm.mod<<6)|(decode.modrm.reg<<3)|decode.modrm.rm), 1);
-		gen_load_param_imm(0, 2); gen_load_param_imm(imm, 3);
-		gen_call_function_setup(fury_mmx_exec, 4);
+		gen_load_param_imm(modrm, 0); gen_load_param_imm(0, 1); gen_load_param_imm(imm, 2);
+		gen_call_function_setup(fn, 3);
 	} else {
 		dyn_fill_ea(FC_ADDR);
 		Bitu imm = (op >= 0x71 && op <= 0x73) ? decode_fetchb() : 0;
-		gen_load_param_imm(op, 0); gen_load_param_imm(((decode.modrm.mod<<6)|(decode.modrm.reg<<3)|decode.modrm.rm), 1);
-		gen_load_param_reg(FC_ADDR, 2); gen_load_param_imm(imm, 3);
-		gen_call_function_setup(fury_mmx_exec, 4);
+		gen_load_param_imm(modrm, 0); gen_load_param_reg(FC_ADDR, 1); gen_load_param_imm(imm, 2);
+		gen_call_function_setup(fn, 3);
 		dyn_check_exception(FC_RETOP);
 	}
 }

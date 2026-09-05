@@ -232,6 +232,20 @@ extern int dynamic_core_cache_block_size;
 
 static bool paging_warning = true;
 
+#if defined(FURY_WASMJIT)
+#ifndef FURY_HOT_THRESHOLD
+#define FURY_HOT_THRESHOLD 8     /* 1 = translate on first sight (no gate) */
+#endif
+#define FURY_COLD_STEP 32
+static struct { uint32_t key; uint32_t count; } fury_hot[65536];
+static INLINE bool fury_block_is_cold(uint32_t ip) {
+	auto& e = fury_hot[(ip >> 1) & 65535];
+	if (e.key != ip) { e.key = ip; e.count = 1; return true; }
+	if (++e.count >= FURY_HOT_THRESHOLD) return false;
+	return true;
+}
+#endif
+
 Bits CPU_Core_Dynrec_Run(void) {
     if (CPU_Cycles <= 0)
 	    return CBRET_NONE;
@@ -288,6 +302,18 @@ Bits CPU_Core_Dynrec_Run(void) {
 
 		// find correct Dynamic Block to run
 		CacheBlockDynRec * block=chandler->FindCacheBlock(ip_point&4095);
+#if defined(FURY_WASMJIT)
+		if (!block && fury_block_is_cold(ip_point)) {
+			/* fury: every translated block is a wasm module the browser has
+			   to compile; most blocks run a few times at most. Cold code
+			   goes to the normal core in short steps until it proves hot. */
+			Bits step = CPU_Cycles < FURY_COLD_STEP ? CPU_Cycles : FURY_COLD_STEP;
+			CPU_CycleLeft += CPU_Cycles - step;
+			CPU_Cycles = step;
+			dosbox_allow_nonrecursive_page_fault = true;
+			return CPU_Core_Normal_Run();
+		}
+#endif
 		if (!block) {
 			// no block found, thus translate the instruction stream
 			// unless the instruction is known to be modified
