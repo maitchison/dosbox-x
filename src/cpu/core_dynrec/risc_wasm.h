@@ -23,9 +23,12 @@
 #include <vector>
 #include <type_traits>
 
-// capabilities: no flags-invalidation call patching yet (the simpler
-// helpers have the same wasm signatures, so this can come later), no
-// direct regs/segs addressing (the generic memory forms are used)
+// capabilities: dead-flag call patching (a raw call is a fixed 16-byte
+// site: the decoder may later swap the helper for its flag-less twin, or
+// replace the call with inline code); no direct regs/segs addressing (the
+// generic memory forms are used)
+#define DRC_FLAGS_INVALIDATION
+#define DRC_FLAGS_INVALIDATION_DCODE
 #define DRC_PTR_SIZE_IM uint32_t
 #define DRC_CALL_CONV /* nothing */
 #define DRC_FC /* nothing */
@@ -71,6 +74,7 @@ enum {
 	W_I32_EQZ = 0x45, W_I32_EQ = 0x46, W_I32_LE_S = 0x4c,
 	W_I32_ADD = 0x6a, W_I32_SUB = 0x6b, W_I32_AND = 0x71, W_I32_OR = 0x72,
 	W_I32_SHL = 0x74, W_I32_SHR_S = 0x75, W_I32_SHR_U = 0x76,
+	W_I32_XOR = 0x73, W_I32_ROTL = 0x77, W_I32_ROTR = 0x78, W_NOP = 0x01,
 	W_I32_EXTEND8_S = 0xc0, W_I32_EXTEND16_S = 0xc1,
 	W_BLOCKTYPE_VOID = 0x40
 };
@@ -316,24 +320,31 @@ static INLINE void gen_lea(HostReg dest_reg, Bitu scale, Bits imm) {
 
 // ---- calls -------------------------------------------------------------
 
-// the call itself: params already in WL_P0..; returns the position of the
-// patchable function index immediate
+#define WASM_RAW_CALL_SIZE 20
+
+// every helper call is the same fixed-size site -- parameter loads from
+// FC_OP1/FC_OP2/WL_P2/WL_P3, the function index as a 5-byte immediate, the
+// typed call_indirect, the result into FC_RETOP, nop padding -- so that
+// gen_fill_function_ptr can rewrite it later. Returns the site's start,
+// which is what the decoder keeps for that.
 template <typename T> static DRC_PTR_SIZE_IM wasm_emit_call(const T func, Bitu paramcount) {
 	typedef WasmFnSig<T> S;
 	// the table entry's real signature is what call_indirect checks, so
 	// pass exactly the helper's parameters, whatever the decoder loaded
 	if (paramcount > S::nparams) E_Exit("wasm dynrec: %u params loaded for a %u-param helper",
 		(unsigned)paramcount, (unsigned)S::nparams);
+	uint8_t* start = cache.pos;
 	for (Bitu i = 0; i < S::nparams; i++) wasm_get(wasm_param_local(i));
 	cache_addb(W_I32_CONST);
-	DRC_PTR_SIZE_IM pos = (DRC_PTR_SIZE_IM)(uintptr_t)cache.pos;
 	wasm_i32_const_fixed((uint32_t)(uintptr_t)func, cache.pos);
 	cache.pos += 5;
 	cache_addb(W_CALL_INDIRECT);
 	wasm_uleb(wasm_sig_index(S::nparams, S::ret));
 	wasm_uleb(0);   // table 0
 	if (S::ret) wasm_set(FC_RETOP);
-	return pos;
+	if (cache.pos - start > WASM_RAW_CALL_SIZE) E_Exit("wasm dynrec: call site too long");
+	while (cache.pos - start < WASM_RAW_CALL_SIZE) cache_addb(W_NOP);
+	return (DRC_PTR_SIZE_IM)(uintptr_t)start;
 }
 
 // generate a call to a parameterless function
@@ -441,6 +452,77 @@ static void INLINE gen_fill_branch_long(DRC_PTR_SIZE_IM data) {
 	wasm_get(WL_BRIDX); wasm_i32_const((uint32_t)data); cache_addb(W_I32_EQ);
 	cache_addb(W_IF); cache_addb(W_BLOCKTYPE_VOID);
 	wasm_handler_open = true;
+}
+
+// called when a call to a function can be replaced by a call to a simpler
+// function, or by inline code: rewrite the 16-byte raw call site at pos
+static void gen_fill_function_ptr(uint8_t* pos, void* fct_ptr, Bitu flags_type) {
+	uint8_t* saved = cache.pos;
+	cache.pos = pos;
+	uint8_t binop = 0, unop = 0;
+	switch (flags_type) {
+		case t_ADDb: case t_ADDw: case t_ADDd: binop = W_I32_ADD; break;
+		case t_ORb:  case t_ORw:  case t_ORd:  binop = W_I32_OR; break;
+		case t_ANDb: case t_ANDw: case t_ANDd: binop = W_I32_AND; break;
+		case t_SUBb: case t_SUBw: case t_SUBd: binop = W_I32_SUB; break;
+		case t_XORb: case t_XORw: case t_XORd: binop = W_I32_XOR; break;
+		case t_SHLb: case t_SHLw: case t_SHLd: binop = W_I32_SHL; break;
+		case t_SHRb: case t_SHRw: case t_SHRd: binop = W_I32_SHR_U; break;
+		case t_SARb: case t_SARw: case t_SARd: binop = W_I32_SHR_S; break;
+		case t_ROLd: binop = W_I32_ROTL; break;
+		case t_RORd: binop = W_I32_ROTR; break;
+		case t_INCb: case t_INCw: case t_INCd: unop = W_I32_ADD; break;
+		case t_DECb: case t_DECw: case t_DECd: unop = W_I32_SUB; break;
+		case t_NEGb: case t_NEGw: case t_NEGd: unop = 0xff; break;
+		case t_CMPb: case t_CMPw: case t_CMPd:
+		case t_TESTb: case t_TESTw: case t_TESTd:
+			// the result is not used: nothing to do
+			for (int i = 0; i < WASM_RAW_CALL_SIZE; i++) cache_addb(W_NOP);
+			cache.pos = saved;
+			return;
+		default: break;
+	}
+	if (binop) {
+		wasm_get(FC_OP1); wasm_get(FC_OP2); cache_addb(binop); wasm_set(FC_RETOP);
+	} else if (unop == 0xff) {
+		wasm_i32_const(0); wasm_get(FC_OP1); cache_addb(W_I32_SUB); wasm_set(FC_RETOP);
+	} else if (unop) {
+		wasm_get(FC_OP1); wasm_i32_const(1); cache_addb(unop); wasm_set(FC_RETOP);
+	} else {
+		// swap the helper for its twin of the same signature: the site's own
+		// bytes say how many parameters it loads and whether it keeps a result
+		int nparams = 0;
+		while (pos[nparams * 2] == W_LOCAL_GET) nparams++;
+		const uint8_t* callp = pos + nparams * 2 + 6;   // after i32.const(5)
+		bool ret = false;
+		if (pos[nparams * 2] != W_I32_CONST || *callp != W_CALL_INDIRECT) {
+			FILE* f = fopen("jit.txt", "a");
+			if (f) {
+				fprintf(f, "PATCH SHAPE? type %u nparams %d bytes:", (unsigned)flags_type, nparams);
+				for (int i = 0; i < 24; i++) fprintf(f, " %02x", pos[i]);
+				fprintf(f, "\n");
+				fclose(f);
+			}
+		}
+		if (*callp == W_CALL_INDIRECT) {
+			const uint8_t* q = callp + 1;
+			while (*q & 0x80) q++;   // sig index
+			q++;
+			q++;                      // table
+			ret = (*q == W_LOCAL_SET);
+		}
+		for (int i = 0; i < nparams; i++) wasm_get(wasm_param_local(i));
+		cache_addb(W_I32_CONST);
+		wasm_i32_const_fixed((uint32_t)(uintptr_t)fct_ptr, cache.pos);
+		cache.pos += 5;
+		cache_addb(W_CALL_INDIRECT);
+		wasm_uleb(wasm_sig_index((uint8_t)nparams, ret));
+		wasm_uleb(0);
+		if (ret) wasm_set(FC_RETOP);
+	}
+	if (cache.pos - pos > WASM_RAW_CALL_SIZE) E_Exit("wasm dynrec: patched call site too long");
+	while (cache.pos - pos < WASM_RAW_CALL_SIZE) cache_addb(W_NOP);
+	cache.pos = saved;
 }
 
 // nothing to generate: blocks are entered through fury_wasm_runcode

@@ -379,6 +379,27 @@ run_block:
 			// some instruction has been encountered that could not be translated
 			// (thus it is not part of the code block), the normal core will
 			// handle this instruction
+#if defined(FURY_WASMJIT)
+			{
+				/* fury: which instructions the JIT hands to the normal core,
+				   by opcode (0F-prefixed ones in the upper 256) */
+				static uint32_t fury_opexit[512];
+				static uint64_t fury_opexits;
+				uint8_t b0 = mem_readb(SegPhys(cs)+reg_eip), b1 = mem_readb(SegPhys(cs)+reg_eip+1);
+				if (b0 == 0x66 || b0 == 0x67) { b0 = b1; b1 = mem_readb(SegPhys(cs)+reg_eip+2); }
+				fury_opexit[b0 == 0x0f ? 256 + b1 : b0]++;
+				if ((++fury_opexits & ((1u<<14)-1)) == 0) {
+					FILE* f = fopen("opexit.txt", "w");
+					if (f) {
+						fprintf(f, "FURY_OPEXIT total=%llu", (unsigned long long)fury_opexits);
+						for (unsigned i = 0; i < 512; i++)
+							if (fury_opexit[i] > fury_opexits/500) fprintf(f, " %03x=%u", i, fury_opexit[i]);
+						fprintf(f, "\n");
+						fclose(f);
+					}
+				}
+			}
+#endif
 			CPU_CycleLeft+=CPU_Cycles;
 			CPU_Cycles=1;
 			dosbox_allow_nonrecursive_page_fault = true;

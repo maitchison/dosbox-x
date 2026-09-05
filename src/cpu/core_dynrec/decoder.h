@@ -23,6 +23,9 @@
 #include "decoder_opcodes.h"
 
 #include "dyn_fpu.h"
+#if defined(FURY_WASMJIT)
+#include "dyn_mmx.h"
+#endif
 #include <stddef.h>
 
 /*
@@ -247,6 +250,13 @@ restart_prefix:
 				case 0xbe:dyn_movx_ev_gb(true);break;
 				case 0xbf:dyn_movx_ev_gw(true);break;
 
+#if defined(FURY_WASMJIT)
+				// fury: MMX stays in the block (dyn_mmx.h, lifted from the normal core)
+				FURY_MMX_CASES
+					if (CPU_ArchitectureType<CPU_ARCHTYPE_PMMXSLOW) goto illegalopcode;
+					dyn_mmx(dual_code);
+					break;
+#endif
 				default:
 #if DYN_LOG
 //					LOG_MSG("Unhandled dual opcode 0F%02X",dual_code);
