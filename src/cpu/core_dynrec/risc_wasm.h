@@ -251,6 +251,11 @@ static void gen_and_imm(HostReg reg, uint32_t imm) {
 	wasm_get(reg); wasm_i32_const(imm); cache_addb(W_I32_AND); wasm_set(reg);
 }
 
+// reg = (reg != 0)
+static void gen_to_bool(HostReg reg) {
+	wasm_get(reg); cache_addb(W_I32_EQZ); cache_addb(W_I32_EQZ); wasm_set(reg);
+}
+
 // shift right a register by an 8-bit constant
 static void gen_shr_imm(HostReg reg, uint8_t imm) {
 	if (!imm) return;

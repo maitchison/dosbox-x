@@ -1128,7 +1128,10 @@ static void dyn_branched_exit(BranchTypes btype,int32_t eip_add) {
 static void dyn_set_byte_on_condition(BranchTypes btype) {
 	dyn_get_modrm();
 	dyn_branchflag_to_reg(btype);
-	gen_and_imm(FC_RETOP,1);
+	/* the flag getters answer nonzero, not 1: with the flags materialized
+	   (lflags t_UNKNOWN, as after the normal core hands over) get_ZF is
+	   reg_flags&0x40, and '&1' made sete store 0 with ZF set */
+	gen_to_bool(FC_RETOP);
 	if (decode.modrm.mod<3) {
 		dyn_fill_ea(FC_ADDR);
 		dyn_write_byte(FC_ADDR,FC_RETOP);
