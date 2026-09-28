@@ -91,6 +91,15 @@ static CacheBlockDynRec* wasm_closing_block = nullptr;
 static uint8_t* wasm_body_end = nullptr;
 static uint32_t wasm_blocks_made = 0;
 
+// jit.txt, the check page's trail, logs the first blocks only: a line per
+// block for a whole session ran to megabytes, and an open and close each.
+// -DFURY_JIT_TRAIL_BLOCKS=4294967295 logs every block
+#ifndef FURY_JIT_TRAIL_BLOCKS
+#define FURY_JIT_TRAIL_BLOCKS 64
+#endif
+#define FURY_JIT_PATCH_REPORTS 16
+static uint32_t wasm_patch_reports = 0;
+
 static void wasm_reset_block_state(void) {
 	wasm_sigs.clear();
 	wasm_open_ifs = 0;
@@ -558,7 +567,8 @@ static void gen_fill_function_ptr(uint8_t* pos, void* fct_ptr, Bitu flags_type) 
 		while (pos[nparams * 2] == W_LOCAL_GET) nparams++;
 		const uint8_t* callp = pos + nparams * 2 + 6;   // after i32.const(5)
 		bool ret = false;
-		if (pos[nparams * 2] != W_I32_CONST || *callp != W_CALL_INDIRECT) {
+		if ((pos[nparams * 2] != W_I32_CONST || *callp != W_CALL_INDIRECT) &&
+			wasm_patch_reports++ < FURY_JIT_PATCH_REPORTS) {
 			FILE* f = fopen("jit.txt", "a");
 			if (f) {
 				fprintf(f, "PATCH SHAPE? type %u nparams %d bytes:", (unsigned)flags_type, nparams);
@@ -659,7 +669,7 @@ static uint32_t wasm_finalize(const uint8_t* start, const uint8_t* end) {
 		FILE* f = fopen(name, "wb");
 		if (f) { fwrite(m.b.data(), 1, m.b.size(), f); fclose(f); }
 	}
-	{
+	if (wasm_blocks_made < FURY_JIT_TRAIL_BLOCKS) {
 		FILE* f = fopen("jit.txt", wasm_blocks_made ? "a" : "w");
 		if (f) {
 			fprintf(f, "block %u: table %d, %u bytes, %u sigs, %d long branches, body %u bytes\n",
