@@ -3438,6 +3438,12 @@ void DOSBOX_SetupConfigSections(void) {
     /* fury (fury-0du3s): steer the output's read rate from the queue's fill,
        within +-ratectl percent, instead of a gap when the emulator falls
        behind real time and a drop when it catches up. 0 is stock behaviour */
+    /* fury (fury-0du3s): time-stretch the output so a lag is heard as a
+       moment slower or faster, same pitch, never a gap or a drop; samples
+       pass untouched while the queue is near its (self-sizing) target */
+    Pbool = secprop->Add_bool("stretch",Property::Changeable::OnlyAtStart,true);
+    Pbool->Set_help("fury: time-stretch the output instead of gapping when the emulator falls behind real time (and squeeze instead of dropping when it catches up).");
+
     Pint = secprop->Add_int("ratectl",Property::Changeable::OnlyAtStart,0);
     Pint->SetMinMax(0,10);
     Pint->Set_help("fury: steer the output rate within +-N percent to keep blocksize+prebuffer queued, instead of gapping or dropping (0 = off).");
