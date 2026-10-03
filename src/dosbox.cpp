@@ -3435,6 +3435,13 @@ void DOSBOX_SetupConfigSections(void) {
     Pint->Set_help("How many milliseconds of data to keep on top of the blocksize.");
     Pint->SetBasic(true);
 
+    /* fury (fury-0du3s): steer the output's read rate from the queue's fill,
+       within +-ratectl percent, instead of a gap when the emulator falls
+       behind real time and a drop when it catches up. 0 is stock behaviour */
+    Pint = secprop->Add_int("ratectl",Property::Changeable::OnlyAtStart,0);
+    Pint->SetMinMax(0,10);
+    Pint->Set_help("fury: steer the output rate within +-N percent to keep blocksize+prebuffer queued, instead of gapping or dropping (0 = off).");
+
     secprop=control->AddSection_prop("midi",&Null_Init,true);//done
 
     Pbool = secprop->Add_bool("roland gs sysex",Property::Changeable::OnlyAtStart,true);
