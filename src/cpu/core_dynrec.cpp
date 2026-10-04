@@ -338,6 +338,7 @@ Bits CPU_Core_Dynrec_Run(void) {
 				if (!nc_retcode) {
 					CPU_Cycles=old_cycles-1;
 					CPU_CycleLeft-=old_cycles;
+					if (CPU_Cycles <= 0) return CBRET_NONE;
 					continue;
 				}
 				return nc_retcode;
