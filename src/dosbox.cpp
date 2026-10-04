@@ -574,6 +574,8 @@ void DOSBOX_ResetTickLoop() {
 void increaseticks() { //Make it return ticksRemain and set it in the function above to remove the global variable.
     static int32_t lastsleepDone = -1;
     static Bitu sleep1count = 0;
+    // React to core-cost changes before the audio reserve drains.
+    constexpr uint32_t cycleWindowMs = 25;
     if (!ticksClockStarted) {
         // Host initialization time is not elapsed guest execution time.
         ticksLast = GetTicks();
@@ -644,7 +646,8 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
     ticksDone += (int32_t)ticksRemain;
     const uint32_t elapsedTicks = ticksRemain;
     // Keep overdue ticks without charging them twice to the cycle estimator.
-    constexpr uint32_t tickBatchMs = 20;
+    // Bound guest work between host-time feedback opportunities.
+    constexpr uint32_t tickBatchMs = 5;
     if (emulator_speed == 100u) {
         ticksRemain += tickDebt;
         tickDebt = ticksRemain > tickBatchMs ? std::min(ticksRemain - tickBatchMs, uint32_t(200)) : 0;
@@ -658,7 +661,7 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
     if (!CPU_CycleAutoAdjust || CPU_SkipCycleAutoAdjust)
         return;
 
-    if (ticksScheduled >= 250 || ticksDone >= 250 || (elapsedTicks > 15 && ticksScheduled >= 5)) {
+    if (ticksScheduled >= cycleWindowMs || ticksDone >= cycleWindowMs || (elapsedTicks > 15 && ticksScheduled >= 5)) {
         if (ticksDone < 1) ticksDone = 1; // Protect against div by zero
         /* ratio we are aiming for is around 90% usage*/
         int32_t ratio = (int32_t)((ticksScheduled * (CPU_CyclePercUsed * 90 * 1024 / 100 / 100)) / ticksDone);
@@ -673,11 +676,11 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
                 ratio = (int32_t)((double)ratio * ratio_not_removed);
                 /* Don't allow very high ratio which can cause us to lock as we don't scale down
                  * for very low ratios. High ratio might result because of timing resolution */
-                if (ticksScheduled >= 250 && ticksDone < 10 && ratio > 16384)
+                if (ticksScheduled >= cycleWindowMs && ticksDone < 10 && ratio > 16384)
                     ratio = 16384;
 
                 // Limit the ratio even more when the cycles are already way above the realmode default.
-                if (ticksScheduled >= 250 && ticksDone < 10 && ratio > 5120 && CPU_CycleMax > 50000)
+                if (ticksScheduled >= cycleWindowMs && ticksDone < 10 && ratio > 5120 && CPU_CycleMax > 50000)
                     ratio = 5120;
 
                 // When downscaling multiple times in a row, ensure a minimum amount of downscaling
