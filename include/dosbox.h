@@ -210,6 +210,7 @@ std::string             formatString(const char* format, ...); // Generates a fo
 
 void					DOSBOX_RunMachine();
 void					DOSBOX_SetLoop(LoopHandler * handler);
+void DOSBOX_ResetTickLoop();
 void					DOSBOX_SetNormalLoop();
 
 void MenuBrowseImageFile(char drive, bool arc, bool boot, bool multiple, const std::string &dev_spec=std::string(), const std::string &dev_spec_opts=std::string());

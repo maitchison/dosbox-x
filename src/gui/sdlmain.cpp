@@ -1756,6 +1756,7 @@ void PauseDOSBoxLoop(Bitu /*unused*/) {
     mainMenu.get_item("mapper_pause").check(false).refresh_item(mainMenu);
 
     is_paused = false;
+    DOSBOX_ResetTickLoop();
 #if defined(WIN32)
     DOSBox_SetSysMenu();
 #endif
@@ -6092,6 +6093,7 @@ void GFX_Events() {
                      * Instead of waiting for the user to hit Alt-Break, we wait for the window to
                      * regain window or input focus.
                      */
+                    DOSBOX_ResetTickLoop();
                     bool paused = true;
                     SDL_Event ev;
 
@@ -6539,6 +6541,7 @@ void GFX_Events() {
                      * Instead of waiting for the user to hit Alt-Break, we wait for the window to
                      * regain window or input focus.
                      */
+                    DOSBOX_ResetTickLoop();
                     bool paused = true;
                     SDL_Event ev;
 
