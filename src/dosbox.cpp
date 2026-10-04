@@ -284,6 +284,8 @@ HerculesCard        hercCard;
 bool                SDLNetInited;
 int32_t             ticksDone;
 uint32_t            ticksScheduled;
+static bool ticksClockStarted = false;
+static uint32_t tickDebt = 0;
 bool                ticksLocked;
 bool                mono_cga=false;
 bool                ignore_opcode_63 = true;
@@ -569,6 +571,12 @@ extern std::string cpuMetrics;
 #if defined(FURY_WASMJIT) && !defined(FURY_USAGE_TARGET)
 #define FURY_USAGE_TARGET 99
 #endif
+void DOSBOX_ResetTickLoop() {
+    ticksClockStarted = false;
+    ticksRemain = 0;
+    ticksRemainSpeedFrac = 0;
+}
+
 void increaseticks() { //Make it return ticksRemain and set it in the function above to remove the global variable.
 #ifdef JSDOS_X
     jsdos::increaseticks();
@@ -576,7 +584,20 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
     static int32_t lastsleepDone = -1;
     static Bitu sleep1count = 0;
 #endif
-    if (GCC_UNLIKELY(ticksLocked)) { // For Fast Forward Mode
+    if (!ticksClockStarted) {
+        // Host initialization time is not elapsed guest execution time.
+        ticksLast = GetTicks();
+        ticksClockStarted = true;
+        tickDebt = 0;
+#ifndef JSDOS_X
+        lastsleepDone = -1;
+        sleep1count = 0;
+#endif
+        CPU_IODelayRemoved = 0;
+        ticksAdded = ticksDone = ticksScheduled = 0;
+    }
+    if (GCC_UNLIKELY(ticksLocked)) {
+        tickDebt = 0; // For Fast Forward Mode
         ticksRemainSpeedFrac = 0;
         ticksRemain = 5;
         /* Reset any auto cycle guessing for this frame */
@@ -589,7 +610,7 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
     uint32_t ticksNew = GetTicks();
     ticksScheduled += ticksAdded;
 
-    if (ticksNew <= ticksLast) { //lower should not be possible, only equal.
+    if (ticksNew == ticksLast && tickDebt == 0) {
         ticksAdded = 0;
 #ifdef JSDOS_X
         int32_t timeslept = 0;
@@ -642,16 +663,23 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
 
     ticksLast = ticksNew;
     ticksDone += (int32_t)ticksRemain;
-    if (ticksRemain > 20) {
-        ticksRemain = 20;
+    const uint32_t elapsedTicks = ticksRemain;
+    // Keep overdue ticks without charging them twice to the cycle estimator.
+    constexpr uint32_t tickBatchMs = 20;
+    if (emulator_speed == 100u) {
+        ticksRemain += tickDebt;
+        tickDebt = ticksRemain > tickBatchMs ? std::min(ticksRemain - tickBatchMs, uint32_t(200)) : 0;
+    } else {
+        tickDebt = 0;
     }
+    if (ticksRemain > tickBatchMs) ticksRemain = tickBatchMs;
     ticksAdded = ticksRemain;
 
     // Is the system in auto cycle mode guessing? If not just exit. (It can be temporarily disabled)
     if (!CPU_CycleAutoAdjust || CPU_SkipCycleAutoAdjust)
         return;
 
-    if (ticksScheduled >= 250 || ticksDone >= 250 || (ticksAdded > 15 && ticksScheduled >= 5)) {
+    if (ticksScheduled >= 250 || ticksDone >= 250 || (elapsedTicks > 15 && ticksScheduled >= 5)) {
         if (ticksDone < 1) ticksDone = 1; // Protect against div by zero
         /* ratio we are aiming for is around 90% usage*/
 #if defined(FURY_WASMJIT)
@@ -681,7 +709,7 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
                     ratio = 5120;
 
                 // When downscaling multiple times in a row, ensure a minimum amount of downscaling
-                if (ticksAdded > 15 && ticksScheduled >= 5 && ticksScheduled <= 20 && ratio > 800)
+                if (elapsedTicks > 15 && ticksScheduled >= 5 && ticksScheduled <= 20 && ratio > 800)
                     ratio = 800;
 
                 if (ratio <= 1024) {
@@ -737,8 +765,8 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
         sleep1count = 0;
 #endif
     }
-    else if (ticksAdded > 15) {
-        /* ticksAdded > 15 but ticksScheduled < 5, lower the cycles
+    else if (elapsedTicks > 15) {
+        /* elapsedTicks > 15 but ticksScheduled < 5, lower the cycles
            but do not reset the scheduled/done ticks to take them into
            account during the next auto cycle adjustment */
         RDTSC_rebase();
@@ -757,6 +785,7 @@ void DOSBOX_SetLoop(LoopHandler * handler) {
 }
 
 void DOSBOX_SetNormalLoop() {
+    DOSBOX_ResetTickLoop();
     loop=Normal_Loop;
 }
 
@@ -938,7 +967,7 @@ void DOSBOX_InitTickLoop() {
     LOG(LOG_MISC,LOG_DEBUG)("Initializing tick loop management");
     Section_prop *section = static_cast<Section_prop *>(control->GetSection("cpu"));
 
-    ticksRemain = 0;
+    DOSBOX_ResetTickLoop();
     ticksLocked = section->Get_bool("turbo");
     ticksLastRTtime = 0;
     ticksLast = GetTicks();
@@ -5369,11 +5398,7 @@ private:
 		//*******************************************
 
 		// Reset any auto cycle guessing for this frame
-		ticksRemain=5;
-		ticksLast = GetTicks();
-		ticksAdded = 0;
-		ticksDone = 0;
-		ticksScheduled = 0;
+		DOSBOX_ResetTickLoop();
 	}
 } dummy;
 }

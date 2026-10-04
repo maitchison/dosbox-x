@@ -197,6 +197,7 @@ std::string             formatString(const char* format, ...); // Generates a fo
 
 void					DOSBOX_RunMachine();
 void					DOSBOX_SetLoop(LoopHandler * handler);
+void DOSBOX_ResetTickLoop();
 void					DOSBOX_SetNormalLoop();
 
 /* machine tests for use with if() statements */
