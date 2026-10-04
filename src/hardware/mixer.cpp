@@ -22,6 +22,7 @@
     That should call the mixer start from there or something.
 */
 
+#include <algorithm>
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
@@ -811,6 +812,12 @@ static void SDLCALL MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
     int32_t volscale1 = (int32_t)(mixer.mastervol[0] * (1 << MIXER_VOLSHIFT));
     int32_t volscale2 = (int32_t)(mixer.mastervol[1] * (1 << MIXER_VOLSHIFT));
     Bitu need = (Bitu)len/MIXER_SSIZE;
+    // Leave producer space even when a callback exceeds the usual block size.
+    const Bitu capacity = mixer.work_wrap / 2;
+    const Bitu reserve = std::min(capacity,
+        mixer.prebuffer_samples + 2 * std::min(need, capacity));
+    const Bitu queueLimit = std::min(capacity,
+        std::max(reserve, mixer.freq * Bitu(150) / 1000));
     int16_t *output = (int16_t*)stream;
     int remains;
 
@@ -826,7 +833,7 @@ static void SDLCALL MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
         if (remains < 0) remains += (int)mixer.work_wrap;
         if (remains < 0) remains = 0;
 
-        if ((unsigned int)remains >= mixer.prebuffer_samples)
+        if ((Bitu)remains >= reserve)
             mixer.prebuffer_wait = false;
     }
 
@@ -862,14 +869,9 @@ static void SDLCALL MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
     remains = (int)mixer.work_in - (int)mixer.work_out;
     if (remains < 0) remains += (int)mixer.work_wrap;
 
-    if ((unsigned long)remains >= (mixer.blocksize*2UL)) {
-        /* drop some samples to keep time */
-        unsigned int drop;
-
-        if ((unsigned long)remains >= (mixer.blocksize*3UL)) // hard drop
-            drop = ((unsigned int)remains - (unsigned int)(mixer.blocksize));
-        else // subtle drop
-            drop = (((unsigned int)remains - (unsigned int)(mixer.blocksize*2)) / 50U) + 1;
+    // Preserve recovered PCM up to the latency ceiling; longer stalls need a resync.
+    if ((Bitu)remains > queueLimit) {
+        Bitu drop = (Bitu)remains - queueLimit;
 
         while (drop > 0) {
             mixer.work_out++;
