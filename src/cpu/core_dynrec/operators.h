@@ -1656,6 +1656,7 @@ static uint16_t DRC_CALL_CONV dynrec_movsb_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_movsb_word(uint16_t count,int16_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1674,6 +1675,7 @@ static uint32_t DRC_CALL_CONV dynrec_movsb_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_movsb_dword(uint32_t count,int32_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count-CPU_Cycles);
@@ -1692,6 +1694,7 @@ static uint16_t DRC_CALL_CONV dynrec_movsw_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_movsw_word(uint16_t count,int16_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1711,6 +1714,7 @@ static uint32_t DRC_CALL_CONV dynrec_movsw_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_movsw_dword(uint32_t count,int32_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count-CPU_Cycles);
@@ -1730,6 +1734,7 @@ static uint16_t DRC_CALL_CONV dynrec_movsd_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_movsd_word(uint16_t count,int16_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1749,6 +1754,7 @@ static uint32_t DRC_CALL_CONV dynrec_movsd_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_movsd_dword(uint32_t count,int32_t add_index,PhysPt si_base,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1769,6 +1775,7 @@ static uint16_t DRC_CALL_CONV dynrec_lodsb_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_lodsb_word(uint16_t count,int16_t add_index,PhysPt si_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1786,6 +1793,7 @@ static uint32_t DRC_CALL_CONV dynrec_lodsb_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_lodsb_dword(uint32_t count,int32_t add_index,PhysPt si_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1803,6 +1811,7 @@ static uint16_t DRC_CALL_CONV dynrec_lodsw_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_lodsw_word(uint16_t count,int16_t add_index,PhysPt si_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1821,6 +1830,7 @@ static uint32_t DRC_CALL_CONV dynrec_lodsw_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_lodsw_dword(uint32_t count,int32_t add_index,PhysPt si_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1839,6 +1849,7 @@ static uint16_t DRC_CALL_CONV dynrec_lodsd_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_lodsd_word(uint16_t count,int16_t add_index,PhysPt si_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1857,6 +1868,7 @@ static uint32_t DRC_CALL_CONV dynrec_lodsd_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_lodsd_dword(uint32_t count,int32_t add_index,PhysPt si_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1876,6 +1888,7 @@ static uint16_t DRC_CALL_CONV dynrec_stosb_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_stosb_word(uint16_t count,int16_t add_index,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1893,6 +1906,7 @@ static uint32_t DRC_CALL_CONV dynrec_stosb_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_stosb_dword(uint32_t count,int32_t add_index,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1910,6 +1924,7 @@ static uint16_t DRC_CALL_CONV dynrec_stosw_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_stosw_word(uint16_t count,int16_t add_index,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1928,6 +1943,7 @@ static uint32_t DRC_CALL_CONV dynrec_stosw_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_stosw_dword(uint32_t count,int32_t add_index,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
@@ -1946,6 +1962,7 @@ static uint16_t DRC_CALL_CONV dynrec_stosd_word(uint16_t count,int16_t add_index
 static uint16_t DRC_CALL_CONV dynrec_stosd_word(uint16_t count,int16_t add_index,PhysPt di_base) {
 	uint16_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left=(uint16_t)(count-CPU_Cycles);
@@ -1964,6 +1981,7 @@ static uint32_t DRC_CALL_CONV dynrec_stosd_dword(uint32_t count,int32_t add_inde
 static uint32_t DRC_CALL_CONV dynrec_stosd_dword(uint32_t count,int32_t add_index,PhysPt di_base) {
 	uint32_t count_left;
 	if (count<(Bitu)CPU_Cycles) {
+		CPU_Cycles -= count;
 		count_left=0;
 	} else {
 		count_left= (uint32_t)(count - CPU_Cycles);
