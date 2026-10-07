@@ -622,6 +622,29 @@ struct WasmBuf {
 };
 }
 
+// module counts, for jitstats.txt
+static uint32_t wasm_peak_live = 0;
+static uint32_t wasm_flushes = 0;        // every block cleared to stay under FURY_JIT_MAX_LIVE
+static uint32_t wasm_retries = 0;        // flushes because the browser refused a module
+
+static void wasm_write_stats(void) {
+	FILE* f = fopen("jitstats.txt", "w");
+	if (!f) return;
+	fprintf(f, "made %u live %u peak %u released %u flushes %u retries %u cap %u\n",
+		(unsigned)wasm_blocks_made, (unsigned)wasm_live_modules, (unsigned)wasm_peak_live,
+		(unsigned)wasm_released_modules, (unsigned)wasm_flushes, (unsigned)wasm_retries,
+		(unsigned)FURY_JIT_MAX_LIVE);
+	fclose(f);
+}
+
+// clear every translated block but KEEP (the one being closed), which gives
+// their modules back; the cache re-translates whatever runs next
+static void wasm_flush_blocks(CacheBlockDynRec* keep) {
+	for (CacheBlockDynRec* b = cache.block.first; b; b = b->cache.next)
+		if (b != keep && b->page.handler) b->Clear();
+	wasm_flushes++;
+}
+
 // wrap the instruction bytes [start,end) into a module and instantiate it;
 // returns the table index of the block function
 static uint32_t wasm_finalize(const uint8_t* start, const uint8_t* end) {
@@ -653,7 +676,25 @@ static uint32_t wasm_finalize(const uint8_t* start, const uint8_t* end) {
 	body.u8(W_END);
 	WasmBuf c; c.uleb(1); c.uleb((uint32_t)body.b.size()); c.bytes(body.b.data(), body.b.size());
 	m.section(10, c);
+	if (wasm_live_modules >= FURY_JIT_MAX_LIVE) {
+		wasm_flush_blocks(wasm_closing_block);
+		wasm_write_stats();
+	}
+#if defined(FURY_JIT_REFUSE_EVERY)
+	// test knob: refuse every Nth module as a browser at its limit would
+	static uint32_t refuse_count = 0;
+	int idx = ++refuse_count % FURY_JIT_REFUSE_EVERY ? fury_jit_instantiate(m.b.data(), (int)m.b.size()) : 0;
+#else
 	int idx = fury_jit_instantiate(m.b.data(), (int)m.b.size());
+#endif
+	if (!idx) {
+		// the browser's own ceiling came first (released modules are freed
+		// by its garbage collector, not at once): flush and try once more
+		wasm_flush_blocks(wasm_closing_block);
+		wasm_retries++;
+		wasm_write_stats();
+		idx = fury_jit_instantiate(m.b.data(), (int)m.b.size());
+	}
 	if (!idx) {
 		char msg[512];
 		fury_jit_last_error(msg, sizeof(msg));
@@ -679,6 +720,9 @@ static uint32_t wasm_finalize(const uint8_t* start, const uint8_t* end) {
 		}
 	}
 	wasm_blocks_made++;
+	wasm_live_modules++;
+	if (wasm_live_modules > wasm_peak_live) wasm_peak_live = wasm_live_modules;
+	if ((wasm_blocks_made & 1023) == 0) wasm_write_stats();
 	return (uint32_t)idx;
 }
 
@@ -695,6 +739,7 @@ static void cache_block_closing(uint8_t* block_start, Bitu block_size) {
 	(void)block_size;
 	uint32_t idx = wasm_finalize(block_start, wasm_body_end);
 	wasm_closing_block->cache.xstart = (uint8_t*)(uintptr_t)idx;
+	wasm_closing_block->wasm_idx = idx;
 	wasm_reset_block_state();
 }
 
