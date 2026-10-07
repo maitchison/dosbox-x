@@ -59,6 +59,9 @@ public:
 		CacheBlockDynRec * from;	// the from-block can transfer control to this block
 	} link[2];	// maximum two links (conditional jumps)
 	CacheBlockDynRec * crossblock;
+#if defined(FURY_WASMJIT)
+	uint32_t wasm_idx;			// fury: table index of this block's wasm module, 0 for none
+#endif
 };
 
 static struct {
@@ -427,6 +430,27 @@ private:
 };
 
 
+#if defined(FURY_WASMJIT)
+/* fury: each translated block is a wasm module in the shared table, and a
+   browser holds only so many at once (Firefox: about 16k). A cleared block
+   gives its module back; at FURY_JIT_MAX_LIVE every block is flushed. Lower
+   re-translates more often; near the browser's limit, refusals start. */
+extern "C" void fury_jit_release(int idx);
+#ifndef FURY_JIT_MAX_LIVE
+#define FURY_JIT_MAX_LIVE 12288
+#endif
+static uint32_t wasm_live_modules = 0;
+static uint32_t wasm_released_modules = 0;
+
+static void wasm_release_module(CacheBlockDynRec * block) {
+	if (!block->wasm_idx) return;
+	fury_jit_release((int)block->wasm_idx);
+	block->wasm_idx=0;
+	wasm_live_modules--;
+	wasm_released_modules++;
+}
+#endif
+
 static INLINE void cache_addunusedblock(CacheBlockDynRec * block) {
 	// block has become unused, add it to the freelist
 	block->cache.next=cache.block.free;
@@ -441,11 +465,17 @@ static CacheBlockDynRec * cache_getblock(void) {
     else {
         cache.block.free = ret->cache.next;
         ret->cache.next = nullptr;
+#if defined(FURY_WASMJIT)
+        wasm_release_module(ret);
+#endif
     }
 	return ret;
 }
 
 void CacheBlockDynRec::Clear(void) {
+#if defined(FURY_WASMJIT)
+	wasm_release_module(this);
+#endif
 	// check if this is not a cross page block
 	if (hash.index) for (Bitu ind=0;ind<2;ind++) {
 		CacheBlockDynRec * fromlink=link[ind].from;
@@ -663,14 +693,18 @@ static void cache_reset(void) {
 		link_blocks[0].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[0].cache.start);
 		dyn_return(BR_Link1,false);
 #if defined(FURY_WASMJIT)
+		wasm_release_module(&link_blocks[0]);
 		link_blocks[0].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[0].cache.start,cache.pos);
+		link_blocks[0].wasm_idx=(uint32_t)(uintptr_t)link_blocks[0].cache.xstart;
 #endif
 		cache.pos=&cache_code_link_blocks[32];
 		link_blocks[1].cache.start=cache.pos;
 		link_blocks[1].cache.xstart=(uint8_t*)cache_rwtox(link_blocks[1].cache.start);
 		dyn_return(BR_Link2,false);
 #if defined(FURY_WASMJIT)
+		wasm_release_module(&link_blocks[1]);
 		link_blocks[1].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[1].cache.start,cache.pos);
+		link_blocks[1].wasm_idx=(uint32_t)(uintptr_t)link_blocks[1].cache.xstart;
 #endif
 		cache.free_pages=nullptr;
 		cache.last_page=nullptr;
@@ -729,7 +763,9 @@ static void cache_init(bool enable) {
 		// link code that returns with a special return code
 		dyn_return(BR_Link1,false);
 #if defined(FURY_WASMJIT)
+		wasm_release_module(&link_blocks[0]);
 		link_blocks[0].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[0].cache.start,cache.pos);
+		link_blocks[0].wasm_idx=(uint32_t)(uintptr_t)link_blocks[0].cache.xstart;
 #endif
 		cache.pos=&cache_code_link_blocks[32];
 		link_blocks[1].cache.start=cache.pos;
@@ -737,7 +773,9 @@ static void cache_init(bool enable) {
 		// link code that returns with a special return code
 		dyn_return(BR_Link2,false);
 #if defined(FURY_WASMJIT)
+		wasm_release_module(&link_blocks[1]);
 		link_blocks[1].cache.xstart=(uint8_t*)(uintptr_t)wasm_finalize_raw(link_blocks[1].cache.start,cache.pos);
+		link_blocks[1].wasm_idx=(uint32_t)(uintptr_t)link_blocks[1].cache.xstart;
 #endif
 
 		cache.pos=&cache_code_link_blocks[64];
