@@ -555,7 +555,11 @@ static void gen_fill_function_ptr(uint8_t* pos, void* fct_ptr, Bitu flags_type) 
 		default: break;
 	}
 	if (binop) {
-		wasm_get(FC_OP1); wasm_get(FC_OP2); cache_addb(binop); wasm_set(FC_RETOP);
+		// a byte or word operand arrives zero-extended: sar must see its sign
+		wasm_get(FC_OP1);
+		if (flags_type == t_SARb) cache_addb(W_I32_EXTEND8_S);
+		if (flags_type == t_SARw) cache_addb(W_I32_EXTEND16_S);
+		wasm_get(FC_OP2); cache_addb(binop); wasm_set(FC_RETOP);
 	} else if (unop == 0xff) {
 		wasm_i32_const(0); wasm_get(FC_OP1); cache_addb(W_I32_SUB); wasm_set(FC_RETOP);
 	} else if (unop) {
