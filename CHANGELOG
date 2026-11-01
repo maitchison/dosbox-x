@@ -1,4 +1,13 @@
 Next version:
+  - DOS: INT 21h AH=67h (set handle count) now copies the whole current
+    handle table into the new one, not just its first 20 entries. A table
+    that grew a second time lost every handle from 20 up: DOS handed those
+    numbers out again, and a file opened earlier was then read through
+    whichever file got its number next. DJGPP and Free Pascal (go32v2)
+    programs grow the table on demand, so any of them holding more than
+    about 30 files open read the wrong data; the DOS-hosted Free Pascal
+    compiler fails with "Error reading PPU-File" on a large project.
+    (maitchison)
   - macOS: Switching to full screen or zooming the window with output=opengl
     no longer garbles the picture (the image sheared into several copies with
     video memory junk below). The window surface DOSBox-X also uses on the
