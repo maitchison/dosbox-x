@@ -345,6 +345,21 @@ static BlockReturnDynX86 safe_gen_runcode(uint8_t* code)
 	return gen_runcode(code);
 }
 
+CPU_Dyn_X86_RecursiveFPU::CPU_Dyn_X86_RecursiveFPU()
+        : restore(dyn_dh_fpu.state_used)
+{
+	if (restore)
+		dh_fpu_enter_normal_core();
+}
+
+CPU_Dyn_X86_RecursiveFPU::~CPU_Dyn_X86_RecursiveFPU()
+{
+	if (restore) {
+		dh_fpu_enter_dyn_core();
+		gen_dh_fpu_restore();
+	}
+}
+
 void dyn_core_dh_debug_flush (void) {
 	dh_fpu_enter_normal_core();
 }

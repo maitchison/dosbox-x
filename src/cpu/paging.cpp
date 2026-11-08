@@ -302,6 +302,10 @@ static void PAGING_NewPageFault(PhysPt lin_addr, Bitu page_addr, bool prepare_on
 	} else if (dosbox_allow_nonrecursive_page_fault) {
 		throw GuestPageFaultException(lin_addr,page_addr,faultcode);
 	} else {
+#if C_DYNAMIC_X86 && C_FPU
+		// Recursive scheduling needs host x87 state and an interpreter-visible guest FPU.
+		CPU_Dyn_X86_RecursiveFPU fpu_saver;
+#endif
 		// Save the state of the cpu cores
 		LazyFlags old_lflags;
 		memcpy(&old_lflags,&lflags,sizeof(LazyFlags));
@@ -1561,4 +1565,3 @@ void PageHandler_HostPtWriteD(PageHandler *p,PhysPt addr,uint32_t val) {
 		PageHandler_HostPtWriteB(p,addr+PhysPt(3u),(val>>24u)&0xFFu);
 	}
 }
-

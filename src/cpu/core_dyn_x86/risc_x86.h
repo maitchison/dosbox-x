@@ -1162,6 +1162,25 @@ static void gen_free(void) {
 }
 
 #if defined(X86_DYNFPU_DH_ENABLED)
+static void gen_dh_fpu_restore(void)
+{
+#if defined (_MSC_VER)
+	__asm {
+	__asm fnstcw dyn_dh_fpu.host_cw
+	__asm frstor dyn_dh_fpu.state
+	}
+#else
+	__asm__ volatile (
+		"fnstcw %0\n"
+		"frstor %1\n"
+		: "=m" (dyn_dh_fpu.host_cw)
+		: "m" (dyn_dh_fpu.state)
+		: "memory"
+	);
+#endif
+	dyn_dh_fpu.state_used=true;
+}
+
 static void gen_dh_fpu_save(void)
 #if defined (_MSC_VER)
 {

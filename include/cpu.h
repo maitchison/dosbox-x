@@ -89,6 +89,15 @@ Bits CPU_Core_Simple_Trap_Run(void);
 Bits CPU_Core_Full_Run(void);
 Bits CPU_Core_Dyn_X86_Run(void);
 Bits CPU_Core_Dyn_X86_Trap_Run(void);
+#if C_DYNAMIC_X86 && C_FPU
+class CPU_Dyn_X86_RecursiveFPU {
+public:
+	CPU_Dyn_X86_RecursiveFPU();
+	~CPU_Dyn_X86_RecursiveFPU();
+private:
+	bool restore;
+};
+#endif
 Bits CPU_Core_Dynrec_Run(void);
 Bits CPU_Core_Dynrec_Trap_Run(void);
 Bits CPU_Core_Prefetch_Run(void);
