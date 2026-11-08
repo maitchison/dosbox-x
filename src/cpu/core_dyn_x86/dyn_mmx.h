@@ -85,9 +85,12 @@ static void dyn_mmx_op(Bitu op) {
 // mmx SHIFT mm, imm8 template
 static void dyn_mmx_shift_imm8(uint8_t op) {
 	dyn_get_modrm();
-	Bitu imm; decode_fetchb_imm(imm);
+	/* the count itself: decode_fetchb_imm can hand back a pointer to it
+	   instead, for code that rewrites its own immediates, and this
+	   instruction has no form that reads its count from memory */
+	uint8_t imm = decode_fetchb();
 
-	dyn_mmx_simple_imm8(op, (uint8_t)decode.modrm.val, (uint8_t)imm);
+	dyn_mmx_simple_imm8(op, (uint8_t)decode.modrm.val, imm);
 }
 
 // 0x6E - MOVD mm, r/m32
