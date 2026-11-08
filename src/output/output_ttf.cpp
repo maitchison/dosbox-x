@@ -1231,7 +1231,8 @@ void GFX_EndTextLines(bool force) {
 						colorFG=colorBG;
 				}
 				bool dw = newAttrChar[ttf.cursor].unicode && newAttrChar[ttf.cursor].doublewide;
-                if(colorChanged&&!IS_VGA_ARCH){
+                bool colornul = staycolors || (IS_VGA_ARCH && (altBGR1[colorBG&15].red > 4 || altBGR1[colorBG&15].green > 4 || altBGR1[colorBG&15].blue > 4 || altBGR1[colorFG&15].red > 4 || altBGR1[colorFG&15].green > 4 || altBGR1[colorFG&15].blue > 4) && rgbColors[colorBG].red < 5 && rgbColors[colorBG].green < 5 && rgbColors[colorBG].blue < 5 && rgbColors[colorFG].red < 5 && rgbColors[colorFG].green <5 && rgbColors[colorFG].blue < 5);
+                if(colornul||(colorChanged&&!IS_VGA_ARCH)){
                     ttf_bgColor.r = altBGR1[colorBG&15].red;
                     ttf_bgColor.g = altBGR1[colorBG&15].green;
                     ttf_bgColor.b = altBGR1[colorBG&15].blue;

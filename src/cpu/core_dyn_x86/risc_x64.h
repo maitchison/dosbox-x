@@ -1362,6 +1362,7 @@ static void gen_free(void) {
 #if defined(X86_DYNFPU_DH_ENABLED)
 static void gen_dh_fpu_saveInit(void);
 static void (*gen_dh_fpu_save)(void)  = gen_dh_fpu_saveInit;
+static void (*gen_dh_fpu_restore)(void) = nullptr;
 
 // DO NOT USE opcode::setabsaddr IN THIS FUNCTION (RBP unavailable at execution time)
 static void gen_dh_fpu_saveInit(void) {
@@ -1384,8 +1385,16 @@ static void gen_dh_fpu_saveInit(void) {
 	opcode(1).setimm(0x3F,1).setea(0,-1,0,offsetof(dyn_dh_fpu_struct,state.cw)).Emit8(0x80);
 	cache_addb(0xC3); // RET
 
+	gen_dh_fpu_restore = (void(*)(void))cache_rwtox(cache.pos);
+	if ((uint32_t)addr == addr) opcode(0).setimm(addr,4).Emit8Reg(0xB8);
+	else opcode(0).set64().setimm(addr,8).Emit8Reg(0xB8);
+	opcode(7).setea(0,-1,0,offsetof(dyn_dh_fpu_struct,host_cw)).Emit8(0xd9);
+	opcode(4).setea(0,-1,0,offsetof(dyn_dh_fpu_struct,state)).Emit8(0xdd);
+	opcode(0).setimm(1,1).setea(0,-1,0,offsetof(dyn_dh_fpu_struct,state_used)).Emit8(0xc6);
+	cache_addb(0xC3);
+	assert(cache.pos <= &cache_code_link_blocks[128]);
+
 	cache.pos = oldpos;
 	gen_dh_fpu_save();
 }
 #endif
-

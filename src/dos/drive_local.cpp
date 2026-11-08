@@ -55,6 +55,69 @@
 #include "render.h"
 #include "jfont.h"
 
+/* -asyncio (a MOUNT flag, off by default): on a slow drive such as a network
+   share, each host file call runs on a worker thread while the guest services
+   interrupts, as real DOS does after the STI at the top of INT 21h. The timer
+   and the sound card keep running through a call that waits on the network,
+   where before the whole emulator stopped. A call done within a millisecond
+   never lets an interrupt in. The worker only makes the host call: guest
+   memory, DOS state and the drive cache stay on the emulation thread. */
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <thread>
+
+/* never destroyed: the worker still waits on them while the process exits */
+struct AsyncState {
+	std::mutex lock;
+	std::condition_variable wake;
+	const std::function<void()> *job = nullptr;
+	std::atomic<bool> done{false};
+	bool busy = false, started = false;
+};
+static AsyncState &aio = *new AsyncState;
+
+static void AsyncWorker(void) {
+	std::unique_lock<std::mutex> l(aio.lock);
+	for (;;) {
+		aio.wake.wait(l, []{ return aio.job != nullptr; });
+		const std::function<void()> *job = aio.job;
+		l.unlock();
+		(*job)();
+		l.lock();
+		aio.job = nullptr;
+		aio.done.store(true, std::memory_order_release);
+	}
+}
+
+static void AsyncRun(const std::function<void()> &fn) {
+	/* a call from an interrupt handler during another one's wait: in place */
+	if (aio.busy) { fn(); return; }
+	if (!aio.started) { std::thread(AsyncWorker).detach(); aio.started = true; }
+	aio.busy = true;
+	aio.done.store(false, std::memory_order_relaxed);
+	{ std::lock_guard<std::mutex> g(aio.lock); aio.job = &fn; }
+	aio.wake.notify_one();
+	const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
+	while (!aio.done.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < until)
+		std::this_thread::yield();
+	while (!aio.done.load(std::memory_order_acquire))
+		CALLBACK_Idle();
+	aio.busy = false;
+}
+
+template <class F> static auto HostCall(bool async, F f) -> decltype(f()) {
+	if (!async) return f();
+	decltype(f()) r{};
+	int err = 0;
+	AsyncRun([&] { r = f(); err = errno; });
+	errno = err;
+	return r;
+}
+#define AIO(e) HostCall(asyncio, [&] { return (e); })
+
 #if defined(EMSCRIPTEN) || defined(HAIKU)
 #include <fcntl.h>
 #endif
@@ -1399,10 +1462,10 @@ bool localDrive::FileCreate(DOS_File * * file,const char * name,uint16_t attribu
 #ifdef host_cnv_use_wchar
     FILE * test=_wfopen(host_name,L"rb+");
 #else
-    FILE * test=fopen(host_name,"rb+");
+    FILE * test=AIO(fopen(host_name,"rb+"));
 #endif
 	if(test) {
-		fclose(test);
+		AIO(fclose(test));
 		existing_file=true;
 	}
 
@@ -1449,7 +1512,7 @@ bool localDrive::FileCreate(DOS_File * * file,const char * name,uint16_t attribu
 #ifdef host_cnv_use_wchar
         hand=_wfopen(host_name,L"wb+");
 #else
-        hand=fopen(host_name,"wb+");
+        hand=AIO(fopen(host_name,"wb+"));
 #endif
     }
 	if (!hand){
@@ -1465,7 +1528,9 @@ bool localDrive::FileCreate(DOS_File * * file,const char * name,uint16_t attribu
 	}
 
 	/* Make the 16 bit device information */
-	*file=new LocalFile(name,hand);
+	LocalFile *lf=new LocalFile(name,hand);
+	lf->asyncio=asyncio;
+	*file=lf;
 	(*file)->flags=OPEN_READWRITE;
 
 	return true;
@@ -1629,7 +1694,7 @@ bool localDrive::FileOpen(DOS_File * * file,const char * name,uint32_t flags) {
         hand = _wfdopen(nHandle, (flags&0xf)==OPEN_WRITE?_HT("wb"):type);
 #else
         uint16_t unix_mode = (flags&0xf)==OPEN_READ||(flags&0xf)==OPEN_READ_NO_MOD?O_RDONLY:((flags&0xf)==OPEN_WRITE?O_WRONLY:O_RDWR);
-        int fd = open(host_name, unix_mode);
+        int fd = AIO(open(host_name, unix_mode));
         if (fd < 0)
             return false;
         if (!share(fd, unix_mode & O_ACCMODE, flags)) {
@@ -1642,7 +1707,7 @@ bool localDrive::FileOpen(DOS_File * * file,const char * name,uint32_t flags) {
 #ifdef host_cnv_use_wchar
 		hand=_wfopen(host_name,type);
 #else
-		hand=fopen(host_name,type);
+		hand=AIO(fopen(host_name,type));
 #endif
     }
 //	uint32_t err=errno;
@@ -1651,10 +1716,10 @@ bool localDrive::FileOpen(DOS_File * * file,const char * name,uint32_t flags) {
 #ifdef host_cnv_use_wchar
 			FILE * hmm=_wfopen(host_name,L"rb");
 #else
-			FILE * hmm=fopen(host_name,"rb");
+			FILE * hmm=AIO(fopen(host_name,"rb"));
 #endif
 			if (hmm) {
-				fclose(hmm);
+				AIO(fclose(hmm));
 #ifdef host_cnv_use_wchar
 				LOG_MSG("Warning: file %ls exists and failed to open in write mode.\nPlease Remove write-protection",host_name);
 #else
@@ -1665,7 +1730,9 @@ bool localDrive::FileOpen(DOS_File * * file,const char * name,uint32_t flags) {
 		return false;
 	}
 
-	*file=new LocalFile(name,hand);
+	LocalFile *lf=new LocalFile(name,hand);
+	lf->asyncio=asyncio;
+	*file=lf;
 	(*file)->flags=flags;  //for the inheritance flag and maybe check for others.
 //	(*file)->SetFileName(host_name);
 	return true;
@@ -1697,7 +1764,7 @@ FILE * localDrive::GetSystemFilePtr(char const * const name, char const * const 
 
 	return _wfopen(host_name,wtype);
 #else
-	return fopen(host_name,type);
+	return AIO(fopen(host_name,type));
 #endif
 }
 
@@ -1744,18 +1811,18 @@ bool localDrive::FileUnlink(const char * name) {
         return false;
     }
 
-	if (ht_unlink(host_name)) {
+	if (AIO(ht_unlink(host_name))) {
 		//Unlink failed for some reason try finding it.
 		ht_stat_t buffer;
-		if(ht_stat(host_name,&buffer)) return false; // File not found.
+		if(AIO(ht_stat(host_name,&buffer))) return false; // File not found.
 
 #ifdef host_cnv_use_wchar
 		FILE* file_writable = _wfopen(host_name,L"rb+");
 #else
-		FILE* file_writable = fopen(host_name,"rb+");
+		FILE* file_writable = AIO(fopen(host_name,"rb+"));
 #endif
 		if(!file_writable) return false; //No access ? ERROR MESSAGE NOT SET. FIXME ?
-		fclose(file_writable);
+		AIO(fclose(file_writable));
 
 		//File exists and can technically be deleted, nevertheless it failed.
 		//This means that the file is probably open by some process.
@@ -1772,7 +1839,7 @@ bool localDrive::FileUnlink(const char * name) {
 			}
 		}
 		if(!found_file) return false;
-		if (!ht_unlink(host_name)) {
+		if (!AIO(ht_unlink(host_name))) {
 #if !defined (WIN32)
 			remove_special_file_from_disk(name, "ATR");
 #endif
@@ -1905,7 +1972,7 @@ again:
 		goto again;//No symlinks and such
 	}
 
-	if (ht_stat(host_name,&stat_block)!=0)
+	if (AIO(ht_stat(host_name,&stat_block))!=0)
 		goto again;//No symlinks and such
 
 	if(stat_block.st_mode & S_IFDIR) find_attr=DOS_ATTR_DIRECTORY;
@@ -1919,7 +1986,7 @@ again:
 	if (!isdir) find_attr|=DOS_ATTR_ARCHIVE;
 	if(!(stat_block.st_mode & S_IWUSR)) find_attr|=DOS_ATTR_READ_ONLY;
 	std::string fname = create_filename_of_special_operation(temp_name, "ATR", false);
-	if (ht_stat(fname.c_str(), &special_stat_block)==0) {
+	if (AIO(ht_stat(fname.c_str(), &special_stat_block))==0) {
 		unsigned int len = special_stat_block.st_size;
 		if (len & 1) {
 			if (isdir)
@@ -1972,9 +2039,9 @@ void localDrive::remove_special_file_from_disk(const char* dosname, const char* 
 	std::string newname = create_filename_of_special_operation(dosname, operation, true);
 	const host_cnv_char_t* host_name = CodePageGuestToHost(newname.c_str());
 	if (host_name != NULL)
-		ht_unlink(host_name);
+		AIO(ht_unlink(host_name));
 	else
-		unlink(newname.c_str());
+		AIO(unlink(newname.c_str()));
 #else
 	(void)dosname;
 	(void)operation;
@@ -2000,7 +2067,7 @@ bool localDrive::add_special_file_to_disk(const char* dosname, const char* opera
 #if !defined (WIN32)
 	std::string newname = create_filename_of_special_operation(dosname, operation, true);
 	const host_cnv_char_t* host_name = CodePageGuestToHost(newname.c_str());
-	FILE* f = fopen_wrap(host_name!=NULL?host_name:newname.c_str(),"wb+");
+	FILE* f = AIO(fopen_wrap(host_name!=NULL?host_name:newname.c_str(),"wb+"));
 	if (!f) return false;
 	size_t len = 0;
 	if (isdir != !(value & DOS_ATTR_ARCHIVE)) len |= 1;
@@ -2008,8 +2075,8 @@ bool localDrive::add_special_file_to_disk(const char* dosname, const char* opera
 	if (value & DOS_ATTR_SYSTEM) len |= 4;
 	char *buf = new char[len + 1];
 	memset(buf,0,len);
-	fwrite(buf,len,1,f);
-	fclose(f);
+	AIO(fwrite(buf,len,1,f));
+	AIO(fclose(f));
 	delete[] buf;
 	return true;
 #else
@@ -2046,12 +2113,12 @@ bool localDrive::SetFileAttr(const char * name,uint16_t attr) {
 	return true;
 #else
 	ht_stat_t status;
-	if (ht_stat(host_name,&status)==0) {
+	if (AIO(ht_stat(host_name,&status))==0) {
 		if (attr & DOS_ATTR_READ_ONLY)
 			status.st_mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
 		else
 			status.st_mode |=  S_IWUSR;
-		if (chmod(host_name,status.st_mode) < 0) {
+		if (AIO(chmod(host_name,status.st_mode)) < 0) {
 			DOS_SetError(DOSERR_ACCESS_DENIED);
 			return false;
 		}
@@ -2096,13 +2163,13 @@ bool localDrive::GetFileAttr(const char * name,uint16_t * attr) {
 	return true;
 #else
 	ht_stat_t status;
-	if (ht_stat(host_name,&status)==0) {
+	if (AIO(ht_stat(host_name,&status))==0) {
         bool isdir = status.st_mode & S_IFDIR;
 		*attr=isdir?0:DOS_ATTR_ARCHIVE;
 		if(isdir) *attr|=DOS_ATTR_DIRECTORY;
 		if(!(status.st_mode & S_IWUSR)) *attr|=DOS_ATTR_READ_ONLY;
 		std::string fname = create_filename_of_special_operation(name, "ATR", true);
-        if (ht_stat(fname.c_str(),&status)==0) {
+        if (AIO(ht_stat(fname.c_str(),&status))==0) {
             unsigned int len = status.st_size;
             if (len & 1) {
                 if (isdir)
@@ -2126,7 +2193,7 @@ bool localDrive::GetFileAttrEx(char* name, struct stat *status) {
 	strcat(newname,name);
 	CROSS_FILENAME(newname);
 	dirCache.ExpandName(newname);
-	return !stat(newname,status);
+	return !AIO(stat(newname,status));
 }
 
 std::string localDrive::GetHostName(const char * name) {
@@ -2137,7 +2204,7 @@ std::string localDrive::GetHostName(const char * name) {
 	dirCache.ExpandName(newname);
 	const host_cnv_char_t* host_name = CodePageGuestToHost(newname);
 	ht_stat_t temp_stat;
-	static std::string hostname; hostname = host_name != NULL && ht_stat(host_name,&temp_stat)==0 ? newname : "";
+	static std::string hostname; hostname = host_name != NULL && AIO(ht_stat(host_name,&temp_stat))==0 ? newname : "";
 	return hostname;
 }
 
@@ -2223,7 +2290,7 @@ bool localDrive::MakeDir(const char * dir) {
 #if defined (WIN32)						/* MS Visual C++ */
 	int temp=_wmkdir(host_name);
 #else
-	int temp=mkdir(host_name,0775);
+	int temp=AIO(mkdir(host_name,0775));
 #endif
 	if (temp==0) dirCache.CacheOut(newdir,true);
 	return (temp==0);// || ((temp!=0) && (errno==EEXIST));
@@ -2255,7 +2322,7 @@ bool localDrive::RemoveDir(const char * dir) {
 #if defined (WIN32)						/* MS Visual C++ */
 	int temp=_wrmdir(host_name);
 #else
-	int temp=rmdir(host_name);
+	int temp=AIO(rmdir(host_name));
 #endif
 	if (temp==0) dirCache.DeleteEntry(newdir,true);
 	return (temp==0);
@@ -2285,10 +2352,10 @@ bool localDrive::TestDir(const char * dir) {
 	if (len && !check_last_split_char(newdir, len, '\\')) {
 		// It has to be a directory !
 		ht_stat_t test;
-		if (ht_stat(host_name,&test))		return false;
+		if (AIO(ht_stat(host_name,&test)))		return false;
 		if ((test.st_mode & S_IFDIR)==0)	return false;
 	}
-	int temp=ht_access(host_name,F_OK);
+	int temp=AIO(ht_access(host_name,F_OK));
 	return (temp==0);
 }
 
@@ -2305,7 +2372,7 @@ bool localDrive::Rename(const char * oldname,const char * newname) {
 	strcat(newold,oldname);
 	CROSS_FILENAME(newold);
     struct stat temp_stat;
-    if(stat(newold,&temp_stat)) dirCache.ExpandName(newold);
+    if(AIO(stat(newold,&temp_stat))) dirCache.ExpandName(newold);
 
 	char newnew[CROSS_LEN];
 	strcpy(newnew,basedir);
@@ -2335,7 +2402,7 @@ bool localDrive::Rename(const char * oldname,const char * newname) {
 #ifdef host_cnv_use_wchar
 	int temp=_wrename(o_temp_name,n_temp_name);
 #else
-	int temp=rename(o_temp_name,n_temp_name);
+	int temp=AIO(rename(o_temp_name,n_temp_name));
 #endif
 
 	if (temp==0) dirCache.CacheOut(newnew);
@@ -2397,7 +2464,7 @@ bool localDrive::AllocationInfo64(uint32_t* _bytes_sector, uint32_t* _sectors_cl
             }
 #else
         struct statvfs stat;
-        res = statvfs(basedir, &stat) == 0;
+        res = AIO(statvfs(basedir, &stat)) == 0;
         if(res) {
             int ratio = stat.f_blocks / 65536, tmp = ratio;
             *_bytes_sector = 512;
@@ -2504,7 +2571,7 @@ bool localDrive::AllocationInfo64(uint32_t* _bytes_sector, uint32_t* _sectors_cl
              }
 #else
         struct statvfs stat;
-		res = statvfs(basedir, &stat) == 0;
+		res = AIO(statvfs(basedir, &stat)) == 0;
 		if (res) {
 			int ratio = stat.f_blocks / 65536, tmp=ratio;
 			*_bytes_sector = 512;
@@ -2595,7 +2662,7 @@ bool localDrive::FileExists(const char* name) {
     }
 
 	ht_stat_t temp_stat;
-	if(ht_stat(host_name,&temp_stat)!=0) return false;
+	if(AIO(ht_stat(host_name,&temp_stat))!=0) return false;
 	if(temp_stat.st_mode & S_IFDIR) return false;
 	return true;
 }
@@ -2617,7 +2684,7 @@ bool localDrive::FileStat(const char* name, FileStat_Block * const stat_block) {
     }
 
 	ht_stat_t temp_stat;
-	if(ht_stat(host_name,&temp_stat)!=0) return false;
+	if(AIO(ht_stat(host_name,&temp_stat))!=0) return false;
 
 	/* Convert the stat to a FileStat */
     const struct tm* time;
@@ -2673,18 +2740,18 @@ void *localDrive::opendir(const char *name) {
         return NULL;
     }
 
-	return open_directoryw(host_name);
+	return AIO(open_directoryw(host_name));
 }
 
 void localDrive::closedir(void *handle) {
-	close_directory((dir_information*)handle);
+	AIO((close_directory((dir_information*)handle), 0));
 }
 
 bool localDrive::read_directory_first(void *handle, char* entry_name, char* entry_sname, bool& is_directory) {
     host_cnv_char_t tmp[MAX_PATH+1], stmp[MAX_PATH+1];
 
     ignorespecial = true;
-    if (::read_directory_firstw((dir_information*)handle, tmp, stmp, is_directory)) {
+    if (AIO(::read_directory_firstw((dir_information*)handle, tmp, stmp, is_directory))) {
         ignorespecial = false;
         // guest to host code page translation
         const char* n_stemp_name = CodePageHostToGuest(stmp);
@@ -2722,7 +2789,7 @@ bool localDrive::read_directory_next(void *handle, char* entry_name, char* entry
 
 next:
     ignorespecial = true;
-    if (::read_directory_nextw((dir_information*)handle, tmp, stmp, is_directory)) {
+    if (AIO(::read_directory_nextw((dir_information*)handle, tmp, stmp, is_directory))) {
         ignorespecial = false;
         // guest to host code page translation
         const char* n_stemp_name = CodePageHostToGuest(stmp);
@@ -2827,11 +2894,11 @@ bool LocalFile::Read(uint8_t * data,uint16_t * size) {
 			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
 			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
 		} else
-			fseek(fhandle,ftell(fhandle),SEEK_SET);
+			AIO(fseek(fhandle,ftell(fhandle),SEEK_SET));
         if (!newtime) UpdateLocalDateTime();
     }
 	last_action=READ;
-	*size=file_access_tries>0?(uint16_t)read(fileno(fhandle),data,*size):(uint16_t)fread(data,1,*size,fhandle);
+	*size=AIO(file_access_tries>0?(uint16_t)read(fileno(fhandle),data,*size):(uint16_t)fread(data,1,*size,fhandle));
 	/* Fake harddrive motion. Inspector Gadget with soundblaster compatible */
 	/* Same for Igor */
 	/* hardrive motion => unmask irq 2. Only do it when it's masked as unmasking is realitively heavy to emulate */
@@ -2879,14 +2946,14 @@ bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
 		if (file_access_tries>0) {
 			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
 			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
-		} else fseek(fhandle,ftell(fhandle),SEEK_SET);
+		} else AIO(fseek(fhandle,ftell(fhandle),SEEK_SET));
 	}
 	last_action=WRITE;
 	if (*size==0){
 		uint32_t pos=file_access_tries>0?lseek(fileno(fhandle),0,SEEK_CUR):ftell(fhandle);
-		return !ftruncate(fileno(fhandle),pos);
+		return !AIO(ftruncate(fileno(fhandle),pos));
 	} else {
-		*size=file_access_tries>0?(uint16_t)write(fileno(fhandle),data,*size):(uint16_t)fwrite(data,1,*size,fhandle);
+		*size=AIO(file_access_tries>0?(uint16_t)write(fileno(fhandle),data,*size):(uint16_t)fwrite(data,1,*size,fhandle));
 		return true;
 	}
 }
@@ -3031,14 +3098,14 @@ bool LocalFile::Seek(uint32_t * pos,uint32_t type) {
 #endif
 	bool fail;
 	if (file_access_tries>0) fail=lseek(fileno(fhandle),*reinterpret_cast<int32_t*>(pos),seektype)==-1;
-	else fail=fseek(fhandle,*reinterpret_cast<int32_t*>(pos),seektype)!=0;
+	else fail=AIO(fseek(fhandle,*reinterpret_cast<int32_t*>(pos),seektype))!=0;
 	if (fail) {
 		// Out of file range, pretend everything is ok
 		// and move file pointer top end of file... ?! (Black Thorne)
 		if (file_access_tries>0)
 			lseek(fileno(fhandle),0,SEEK_END);
 		else
-			fseek(fhandle,0,SEEK_END);
+			AIO(fseek(fhandle,0,SEEK_END));
 	}
 #if 0
 	fpos_t temppos;
@@ -3056,7 +3123,7 @@ bool LocalFile::Close() {
     if (newtime && fhandle) {
         // force STDIO to flush buffers on this file handle, or else fclose() will write buffered data
         // and cause mtime to reset back to current time.
-        fflush(fhandle);
+        AIO(fflush(fhandle));
 
         // backport from DOS_PackDate() and DOS_PackTime()
         struct tm tim = { 0 };
@@ -3102,7 +3169,7 @@ bool LocalFile::Close() {
         ftsp[0].tv_sec =  ftsp[1].tv_sec =  mktime(&tim);
         ftsp[0].tv_nsec = ftsp[1].tv_nsec = 0;
 
-        if (futimens(fileno(fhandle), ftsp)) {
+        if (AIO(futimens(fileno(fhandle), ftsp))) {
             extern int errno; 
             LOG_MSG("Set time failed (%s)", strerror(errno));
         }
@@ -3111,7 +3178,7 @@ bool LocalFile::Close() {
 
     // only close if one reference left
     if (refCtr==1) {
-        if(fhandle) fclose(fhandle); 
+        if(fhandle) AIO(fclose(fhandle)); 
         fhandle = nullptr;
         open = false;
     }
@@ -3148,7 +3215,7 @@ void LocalFile::FlagReadOnlyMedium(void) {
 bool LocalFile::UpdateDateTimeFromHost(void) {
 	if(!open) return false;
 	struct stat temp_stat;
-	fstat(fileno(fhandle),&temp_stat);
+	AIO(fstat(fileno(fhandle),&temp_stat));
     const struct tm* ltime;
 	if((ltime=localtime(&temp_stat.st_mtime))!=nullptr) {
 		time=DOS_PackTime((uint16_t)ltime->tm_hour,(uint16_t)ltime->tm_min,(uint16_t)ltime->tm_sec);
@@ -3203,8 +3270,8 @@ void LocalFile::Flush(void) {
 			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
 			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
 		} else {
-			fseek(fhandle,ftell(fhandle),SEEK_SET);
-			fflush(fhandle);
+			AIO(fseek(fhandle,ftell(fhandle),SEEK_SET));
+			AIO(fflush(fhandle));
 		}
 		last_action=NONE;
         if (!newtime) UpdateLocalDateTime();

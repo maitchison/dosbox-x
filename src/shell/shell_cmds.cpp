@@ -4469,6 +4469,16 @@ void DOS_Shell::CMD_ASSOC(char* args) {
 #if !defined(OSFREE)
 void DOS_Shell::CMD_HISTORY(char* args) {
     HELP("HISTORY");
+    /* /A puts the rest of the line on the history as if it had been typed:
+       a batch file can leave the next command one Up away. Parsed here, not
+       by ScanCMDBool, so the line itself may hold a switch */
+    char *line = ltrim(args);
+    if (line[0] == '/' && toupper((unsigned char)line[1]) == 'A' &&
+        (line[2] == 0 || isspace((unsigned char)line[2]))) {
+        line = rtrim(ltrim(line + 2));
+        if (*line) l_history.emplace_front(line);
+        return;
+    }
     if (ScanCMDBool(args,"C"))
         l_history.clear();
     for (auto it = l_history.rbegin(); it != l_history.rend(); ++it) {

@@ -2381,39 +2381,67 @@ static void dyn_interrupt(Bitu num) {
 }
 #endif
 
+#if defined(X86_DYNFPU_DH_ENABLED)
+// Port handlers are host code, and the PIC and PIT time with long double: the
+// host x87, where the guest's MMX/x87 registers may still be live. On a full
+// stack that arithmetic overflows into a NaN event time, which never comes
+// due and stops the emulated machine. Hand the handler an empty x87.
+#define DYN_IO_HOST_FPU CPU_Dyn_X86_RecursiveFPU fpu_saver
+#else
+#define DYN_IO_HOST_FPU
+#endif
+
 static bool dyn_io_writeB(Bitu port,uint8_t val) {
 	bool ex = CPU_IO_Exception(port,1);
-	if (!ex) IO_WriteB(port,val);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		IO_WriteB(port,val);
+	}
 	return ex;
 }
 
 static bool dyn_io_writeW(Bitu port,uint16_t val) {
 	bool ex = CPU_IO_Exception(port,2);
-	if (!ex) IO_WriteW(port,val);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		IO_WriteW(port,val);
+	}
 	return ex;
 }
 
 static bool dyn_io_writeD(Bitu port,uint32_t val) {
 	bool ex = CPU_IO_Exception(port,4);
-	if (!ex) IO_WriteD(port,val);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		IO_WriteD(port,val);
+	}
 	return ex;
 }
 
 static bool dyn_io_readB(Bitu port) {
 	bool ex = CPU_IO_Exception(port,1);
-	if (!ex) core_dyn.readdata = IO_ReadB(port);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		core_dyn.readdata = IO_ReadB(port);
+	}
 	return ex;
 }
 
 static bool dyn_io_readW(Bitu port) {
 	bool ex = CPU_IO_Exception(port,2);
-	if (!ex) core_dyn.readdata = IO_ReadW(port);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		core_dyn.readdata = IO_ReadW(port);
+	}
 	return ex;
 }
 
 static bool dyn_io_readD(Bitu port) {
 	bool ex = CPU_IO_Exception(port,4);
-	if (!ex) core_dyn.readdata = IO_ReadD(port);
+	if (!ex) {
+		DYN_IO_HOST_FPU;
+		core_dyn.readdata = IO_ReadD(port);
+	}
 	return ex;
 }
 

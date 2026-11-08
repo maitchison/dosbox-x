@@ -1865,6 +1865,10 @@ SDL_Window* GFX_SetSDLWindowMode(uint16_t width, uint16_t height, SCREEN_TYPES s
                                       | (dpi_aware_enable ? SDL_WINDOW_ALLOW_HIGHDPI : 0));
         if (sdl.window) {
             GFX_SetTitle(-1, -1, -1, false); //refresh title.
+#if !defined(MACOSX)
+            /* GFX_SetIcon runs before any SDL2 window exists, so each new window gets the logo here */
+            DOSBox_SetOriginalIcon();
+#endif
             if(saved_flags & SDL_WINDOW_MAXIMIZED) {
                 SDL_MaximizeWindow(sdl.window);
             }

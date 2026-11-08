@@ -1334,6 +1334,10 @@ public:
         if (cmd->FindExist("-nocachedir",true))
             nocachedir = true;
 
+        bool asyncio = false;
+        if (cmd->FindExist("-asyncio",true))
+            asyncio = true;
+
         if (cmd->FindExist("-nl",true))
             nextdrive = true;
 
@@ -1779,6 +1783,7 @@ public:
               } else {
                     newdrive=new localDrive(temp_line.c_str(),sizes[0],bit8size,sizes[2],sizes[3],mediaid,options);
                     newdrive->nocachedir = nocachedir;
+                    newdrive->asyncio = asyncio;
                     newdrive->readonly = readonly;
                 }
             }
@@ -10455,6 +10460,7 @@ void DOS_SetupPrograms(void) {
         " -aspi            Use the installed ASPI layer (following -usecd option).\n"
         " -freesize [size] Specify the free disk space of drive in MB (KB for floppies).\n"
         " -nocachedir      Enable real-time update and do not cache the drive.\n"
+        " -asyncio         Host file calls on a worker thread, interrupts serviced meanwhile.\n"
         " -z drive         Move virtual drive Z: to a different letter.\n"
         " -o               Report the drive as: local, remote.\n"
         " -q               Quiet mode (no message output).\n"

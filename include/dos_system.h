@@ -191,6 +191,7 @@ public:
 	void Flush(void) override;
 	uint32_t GetSeekPos(void) override;
 	FILE * fhandle;
+	bool asyncio = false;
 private:
 	bool read_only_medium = false;
 	enum { NONE,READ,WRITE } last_action;
@@ -338,6 +339,7 @@ public:
 
 	bool readonly;
 	bool nocachedir;
+	bool asyncio = false;
 	bool partitionMount = false;
 	char curdir[DOS_PATHLENGTH]={0};
 	char info[256]={0};

@@ -434,7 +434,9 @@ bool DOS_PSP::SetNumFiles(uint16_t fileNum) {
 		fileNum+=2;	// Add a few more files for safety
 		uint16_t para = (fileNum/16)+((fileNum%16)>0);
 		RealPt data	= RealMake(DOS_GetMemory(para,"SetNumFiles data"),0);
-		for (uint16_t i=0; i<fileNum; i++) mem_writeb(Real2Phys(data)+i,(i<20)?GetFileHandle(i):0xFF);
+		// copy the whole current table, not just the first 20: a table that grows a
+		// second time keeps the handles above 20 that are already open
+		for (uint16_t i=0; i<fileNum; i++) mem_writeb(Real2Phys(data)+i,GetFileHandle(i));
 		sSave(sPSP,file_table,data);
 	}
 	sSave(sPSP,max_files,fileNum);
